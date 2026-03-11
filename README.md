@@ -1,58 +1,52 @@
 # SelfDistill - RS3 知识蒸馏训练项目
 
+基于 OpenCLIP ViT 的知识蒸馏训练框架，使用 Teacher-Student 架构在 RS3 遥感数据集上进行自蒸馏训练。
+
 ## 📁 项目结构
 
 ```
 SelfDistill/
-├── README.md                    # 项目说明（本文件）
+├── README.md                    # 项目说明文档
 ├── demo.py                      # 快速演示脚本
+├── .gitignore                   # Git 忽略文件配置
 │
-├── scripts/                     # 训练脚本
-│   ├── train_distill.py        # 主训练脚本
-│   ├── run_train.sh            # 训练启动脚本（单卡/多卡）
-│   ├── test_training.py        # 训练环境测试
-│   └── test_cosine_loss.py     # 损失函数测试
+├── scripts/                     # 训练启动脚本
+│   └── run_train.sh            # 训练脚本（支持单卡/多卡）
 │
-├── models/                      # 模型定义
+├── src/                         # 核心源代码
 │   ├── open_clip/              # OpenCLIP 模型实现
-│   │   ├── transformer.py      # Transformer 架构（含 teacher/student 编码）
-│   │   ├── model.py            # 主模型定义
-│   │   └── ...
-│   └── student.py              # Student 模型（如有自定义）
+│   │   ├── model.py            # Vision Transformer 模型
+│   │   ├── transformer.py      # Transformer 层实现
+│   │   ├── factory.py          # 模型工厂函数
+│   │   └── ...                 # 其他 OpenCLIP 组件
+│   └── training/               # 训练相关代码
+│       ├── train_distill.py    # 主训练脚本
+│       ├── data.py             # 数据加载器 (RS3GridDistillDataset)
+│       └── scheduler.py        # 学习率调度器
 │
-├── src/                         # 源代码
-│   ├── training/               # 训练相关代码
-│   │   └── data.py            # 数据加载器（RS3GridDistillDataset）
-│   └── __init__.py
+├── pretrained/                  # 预训练权重目录
+│   └── RS5M_ViT-B-32.pt        # 教师模型预训练权重
 │
-├── tools/                       # 工具模块
-│   ├── scheduler.py           # 学习率调度器（warmup, cosine 等）
-│   └── RS3_STATS_README.md    # RS3 数据集统计说明
+├── rs3/                         # RS3 训练数据集
+│   ├── rs3-1024-000000.tar
+│   ├── rs3-1024-000001.tar
+│   └── ...
 │
-├── data/                        # 数据相关目录
-│   └── (预留用于存放数据列表、标注等)
+├── rs3_val/                     # RS3 验证数据集
+│   └── rs3-1024-000030.tar
 │
-├── configs/                     # 配置文件（预留）
-│   └── (可添加 YAML 配置文件)
+├── checkpoints/                 # 模型保存目录（运行时生成）
+│   ├── best_model.pth          # 最佳验证集模型
+│   ├── checkpoint_epoch_*.pth  # 各 epoch 的 checkpoint
+│   └── train_*.log             # 训练日志
 │
-├── logs/                        # 训练日志（运行时生成）
-│   └── train_*.log
+├── logs/                        # 日志目录（运行时生成）
+│   └── train_*.log             # 详细训练日志
 │
-├── checkpoints/                 # 模型文件（运行时生成）
-└── logs/                        # 日志文件（运行时生成）
-│   ├── best_model.pth         # 最佳模型
-│   ├── checkpoint_epoch_*.pth # 定期保存的 checkpoint
-│   └── train_*.log           # 训练日志（也会在这里）
-│
-├── pretrained/                  # 预训练权重
-│   └── RS5M_ViT-B-32.pt       # 教师模型预训练权重
-│
-├── rs3/                         # RS3 数据集
-    ├── rs3-1024-000000.tar
-    ├── rs3-1024-000001.tar
-    └── ...
-
-
+└── docs/                        # 文档目录（可选）
+    ├── TRAINING_README.md      # 训练指南
+    └── ...                     # 其他文档
+```
 
 ## 🚀 快速开始
 
@@ -68,7 +62,7 @@ SelfDistill/
 
 ```bash
 cd /workspace/SelfDistill
-python scripts/test_training.py
+python demo.py
 ```
 
 ### 3. 开始训练
@@ -88,7 +82,7 @@ bash scripts/run_train.sh
 
 ```bash
 # 实时查看日志
-tail -f checkpoints/train_*.log
+tail -f logs/train_*.log
 
 # 查看进度条（训练时自动显示）
 # 包含：loss、学习率、ETA、剩余时间等
@@ -107,8 +101,6 @@ VAL_TAR_COUNT=2          # 验证集使用 2 个 tar 文件（6.25%）
 # 训练配置
 EPOCHS=6
 LR=1e-5
-WEIGHT_DECAY=0.1
-WARMUP_STEPS=1000
 SCHEDULER_TYPE="cosine"  # 学习率调度器
 
 # 损失函数
@@ -185,7 +177,7 @@ NUM_WORKERS=4
 完整参数列表：
 
 ```bash
-python scripts/train_distill.py --help
+python src/training/train_distill.py --help
 ```
 
 常用参数：
@@ -203,7 +195,7 @@ python scripts/train_distill.py --help
 ### 自定义配置训练
 
 ```bash
-python scripts/train_distill.py \
+python src/training/train_distill.py \
     --rs3-tar-dir ./rs3 \
     --batch-size 8 \
     --epochs 10 \
@@ -217,7 +209,7 @@ python scripts/train_distill.py \
 ### 从 checkpoint 恢复
 
 ```bash
-python scripts/train_distill.py \
+python src/training/train_distill.py \
     --rs3-tar-dir ./rs3 \
     --resume ./checkpoints/checkpoint_epoch_3.pth
 ```
