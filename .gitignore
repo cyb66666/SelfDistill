@@ -29,5 +29,6 @@ ENV/
 *.tmp
 *.bak
 *.cache
-
+*.jpg
+*.png
 
