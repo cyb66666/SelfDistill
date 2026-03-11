@@ -1,0 +1,113 @@
+2026-03-10 09:39:29,839 - [Rank 1] - INFO - ============================================================
+2026-03-10 09:39:29,840 - [Rank 1] - INFO - RS3 Grid Distillation Training
+2026-03-10 09:39:29,840 - [Rank 1] - INFO - ============================================================
+2026-03-10 09:39:29,840 - [Rank 1] - INFO - Configuration:
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   distributed: True
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   rank: 1
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   world_size: 2
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   local_rank: -1
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   device: cuda
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   rs3_tar_dir: ./rs3
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   rs3_val_dir: ./rs3_val
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   batch_size: 16
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   num_workers: 16
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   model_name: ViT-B-32
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   pretrained_path: pretrained/RS5M_ViT-B-32.pt
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   precision: fp32
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   epochs: 6
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   lr: 2e-05
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   weight_decay: 0.1
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   warmup_epochs: 1
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   warmup_steps: 1000
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   scheduler_type: cosine
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   cooldown_steps: 0
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   grad_clip: 1.0
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   optimizer_betas: (0.9, 0.98)
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   optimizer_eps: 1e-08
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   val_tar_count: 2
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   output_dir: ./checkpoints
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   log_dir: ./logs
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   save_freq: 1
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   log_freq: 10
+2026-03-10 09:39:29,840 - [Rank 1] - INFO -   use_amp: True
+2026-03-10 09:39:29,840 - [Rank 1] - INFO - 
+2026-03-10 09:39:29,840 - [Rank 1] - INFO - Building models...
+2026-03-10 09:39:29,840 - [Rank 1] - INFO - Loading models from pretrained/RS5M_ViT-B-32.pt...
+2026-03-10 09:39:29,840 - [Rank 1] - INFO - 
+=== Loading Teacher Model ===
+2026-03-10 09:39:29,840 - [Rank 1] - INFO - Parsing model identifier. Schema: None, Identifier: ViT-B-32
+2026-03-10 09:39:29,841 - [Rank 1] - INFO - Loaded built-in ViT-B-32 model config.
+2026-03-10 09:39:29,841 - [Rank 1] - INFO - `pretrained` specifies file path: pretrained/RS5M_ViT-B-32.pt
+2026-03-10 09:39:29,841 - [Rank 1] - INFO - Instantiating model architecture: CLIP
+2026-03-10 09:39:31,445 - [Rank 1] - INFO - Loading full pretrained weights from: pretrained/RS5M_ViT-B-32.pt
+2026-03-10 09:39:31,961 - [Rank 1] - INFO - Final image preprocessing configuration set: {'size': (224, 224), 'mode': 'RGB', 'mean': (0.48145466, 0.4578275, 0.40821073), 'std': (0.26862954, 0.26130258, 0.27577711), 'interpolation': 'bicubic', 'resize_mode': 'shortest', 'fill_color': 0}
+2026-03-10 09:39:31,961 - [Rank 1] - INFO - Model ViT-B-32 creation process complete.
+2026-03-10 09:39:31,966 - [Rank 1] - INFO - ✓ Teacher model loaded and frozen
+2026-03-10 09:39:31,967 - [Rank 1] - INFO -   - Model type: VisionTransformer
+2026-03-10 09:39:31,967 - [Rank 1] - INFO -   - Parameters: 87,849,216
+2026-03-10 09:39:31,967 - [Rank 1] - INFO -   - Requires grad: 0 (frozen)
+2026-03-10 09:39:31,967 - [Rank 1] - INFO - 
+=== Loading Student Model ===
+2026-03-10 09:39:31,967 - [Rank 1] - INFO - Parsing model identifier. Schema: None, Identifier: ViT-B-32
+2026-03-10 09:39:31,967 - [Rank 1] - INFO - Loaded built-in ViT-B-32 model config.
+2026-03-10 09:39:31,968 - [Rank 1] - INFO - `pretrained` specifies file path: pretrained/RS5M_ViT-B-32.pt
+2026-03-10 09:39:31,968 - [Rank 1] - INFO - Instantiating model architecture: CLIP
+2026-03-10 09:39:33,576 - [Rank 1] - INFO - Loading full pretrained weights from: pretrained/RS5M_ViT-B-32.pt
+2026-03-10 09:39:34,083 - [Rank 1] - INFO - Final image preprocessing configuration set: {'size': (224, 224), 'mode': 'RGB', 'mean': (0.48145466, 0.4578275, 0.40821073), 'std': (0.26862954, 0.26130258, 0.27577711), 'interpolation': 'bicubic', 'resize_mode': 'shortest', 'fill_color': 0}
+2026-03-10 09:39:34,083 - [Rank 1] - INFO - Model ViT-B-32 creation process complete.
+2026-03-10 09:39:34,091 - [Rank 1] - INFO - ✓ Student model loaded with same initial weights
+2026-03-10 09:39:34,091 - [Rank 1] - INFO -   - Model type: VisionTransformer
+2026-03-10 09:39:34,091 - [Rank 1] - INFO -   - Parameters: 87,849,216
+2026-03-10 09:39:34,092 - [Rank 1] - INFO -   - Requires grad: 152 (trainable)
+2026-03-10 09:39:34,227 - [Rank 1] - INFO - Models moved to device: cuda
+2026-03-10 09:39:34,561 - [Rank 1] - INFO - Student model wrapped with DDP
+2026-03-10 09:39:34,561 - [Rank 1] - INFO - 
+Building dataloaders...
+2026-03-10 09:39:34,565 - [Rank 1] - INFO - Train loader: 6588 batches
+2026-03-10 09:39:34,566 - [Rank 1] - INFO - Val loader: 213 batches
+2026-03-10 09:39:34,566 - [Rank 1] - INFO - 
+Building optimizer...
+2026-03-10 09:39:34,566 - [Rank 1] - INFO - Optimizer: AdamW (lr=2e-05, betas=(0.9, 0.98), eps=1e-08, weight_decay=0.1)
+2026-03-10 09:39:34,567 - [Rank 1] - INFO - Optimizing student model parameters only
+2026-03-10 09:39:34,567 - [Rank 1] - INFO - Scheduler: Cosine (warmup_steps=1000, total_steps=39528)
+2026-03-10 09:39:34,567 - [Rank 1] - INFO - Loss function: cosine_sim
+2026-03-10 09:39:34,567 - [Rank 1] - INFO - AMP enabled: True
+2026-03-10 09:39:34,567 - [Rank 1] - INFO - 
+============================================================
+2026-03-10 09:39:34,567 - [Rank 1] - INFO - Starting training...
+2026-03-10 09:39:34,567 - [Rank 1] - INFO - ============================================================
+2026-03-10 09:39:34,567 - [Rank 1] - INFO - 
+Epoch [1/6]
+2026-03-10 09:39:34,567 - [Rank 1] - INFO - ------------------------------------------------------------
+2026-03-10 10:19:07,540 - [Rank 1] - INFO - Train Loss: 0.1143 | Time: 2372.94s
+2026-03-10 10:19:10,338 - [Rank 1] - INFO - Validation | Epoch [1/6] | Val Loss: 0.0844 | Time: 2.80s
+2026-03-10 10:19:10,338 - [Rank 1] - INFO - 
+Epoch [2/6]
+2026-03-10 10:19:10,338 - [Rank 1] - INFO - ------------------------------------------------------------
+2026-03-10 10:59:24,139 - [Rank 1] - INFO - Train Loss: 0.0863 | Time: 2413.76s
+2026-03-10 10:59:29,411 - [Rank 1] - INFO - Validation | Epoch [2/6] | Val Loss: 0.0825 | Time: 5.27s
+2026-03-10 10:59:29,411 - [Rank 1] - INFO - 
+Epoch [3/6]
+2026-03-10 10:59:29,412 - [Rank 1] - INFO - ------------------------------------------------------------
+2026-03-10 11:39:32,554 - [Rank 1] - INFO - Train Loss: 0.0802 | Time: 2403.10s
+2026-03-10 11:39:35,913 - [Rank 1] - INFO - Validation | Epoch [3/6] | Val Loss: 0.0927 | Time: 3.36s
+2026-03-10 11:39:35,913 - [Rank 1] - INFO - 
+Epoch [4/6]
+2026-03-10 11:39:35,913 - [Rank 1] - INFO - ------------------------------------------------------------
+2026-03-10 12:19:50,669 - [Rank 1] - INFO - Train Loss: 0.0759 | Time: 2414.72s
+2026-03-10 12:19:52,730 - [Rank 1] - INFO - Validation | Epoch [4/6] | Val Loss: 0.0780 | Time: 2.06s
+2026-03-10 12:19:52,731 - [Rank 1] - INFO - 
+Epoch [5/6]
+2026-03-10 12:19:52,731 - [Rank 1] - INFO - ------------------------------------------------------------
+2026-03-10 13:00:08,987 - [Rank 1] - INFO - Train Loss: 0.0729 | Time: 2416.21s
+2026-03-10 13:00:11,136 - [Rank 1] - INFO - Validation | Epoch [5/6] | Val Loss: 0.0696 | Time: 2.15s
+2026-03-10 13:00:11,136 - [Rank 1] - INFO - 
+Epoch [6/6]
+2026-03-10 13:00:11,136 - [Rank 1] - INFO - ------------------------------------------------------------
+2026-03-10 13:40:34,492 - [Rank 1] - INFO - Train Loss: 0.0713 | Time: 2423.32s
+2026-03-10 13:40:36,736 - [Rank 1] - INFO - Validation | Epoch [6/6] | Val Loss: 0.0660 | Time: 2.24s
+2026-03-10 13:40:36,736 - [Rank 1] - INFO - 
+============================================================
+2026-03-10 13:40:36,736 - [Rank 1] - INFO - Training completed!
+2026-03-10 13:40:36,736 - [Rank 1] - INFO - Best validation loss: 0.0660
+2026-03-10 13:40:36,736 - [Rank 1] - INFO - ============================================================

@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 虚拟环境
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.lingma/
+.idea/
+*.swp
+*.swo
+*~
+
+# 模型文件
+*.pth
+*.pt
+checkpoints/
+pretrained/
+
+# 数据集（太大）
+rs3/*.tar
+rs3_val/*.tar
+
+# 临时文件
+*.tmp
+*.bak
+*.cache
+
+
