@@ -27,7 +27,7 @@ from tqdm import tqdm
 
 from src import open_clip
 from src.training.data import create_rs3_dataloader
-from tools.scheduler import cosine_lr, const_lr, const_lr_cooldown
+from src.training.scheduler import cosine_lr, const_lr, const_lr_cooldown
 
 
 # ==================== 配置参数 ====================
@@ -347,10 +347,9 @@ def train_one_epoch(
             # Student 编码（使用独立的 student 模型）
             # 如果是 DDP 包装的模型，需要通过 .module 访问原始模型
             if hasattr(student_model, 'module'):
-               student_features = student_model.module.student_encode(images, boxes_templates, teacher_features)
+               student_features = student_model.module.student_encode(images, boxes_templates)
             else:
-               student_features = student_model.student_encode(images, boxes_templates, teacher_features)
-            
+               student_features = student_model.student_encode(images, boxes_templates)
             # 计算损失
             loss = criterion(student_features, teacher_features, masks.view(-1))
         
@@ -455,11 +454,11 @@ def validate(
 
         if hasattr(student_model, 'module'):
             student_features = student_model.module.student_encode(
-                images, boxes_templates, teacher_features
+                images, boxes_templates
             )
         else:
             student_features = student_model.student_encode(
-                images, boxes_templates, teacher_features
+                images, boxes_templates
             )
 
         loss = criterion(student_features, teacher_features, masks.view(-1))

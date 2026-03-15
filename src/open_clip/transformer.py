@@ -608,8 +608,8 @@ class Transformer(nn.Module):
     def extract_feature_map(self, x, return_forward=False,mode='qq_vfm_distill'):
         for i in range(self.layers - 1):
             x = self.resblocks[i](x)
-        x = x[1:, :, :] 
-        # 最后一层输入移除[cls]
+        # x = x[1:, :, :] 
+        # # 最后一层输入移除[cls]
         if mode=='maskclip':
             x = self.resblocks[-1].forward_without_attn(x)
         elif mode in ['csa','csa_vfm_distill']:
@@ -991,47 +991,16 @@ class VisionTransformer(nn.Module):
 
     def _eval(self, x):
         with torch.no_grad():
-            # ==================== 1. 提取特征图 ====================
-            # Patch Embedding：将图像分割为 patch 并映射到特征维度
-            x = self.conv1(x)  # shape = [*, width, grid, grid]
-            bs, _, h, w = x.shape  # bs=批次大小，h/w=patch 网格的高/宽
-            
-            # 展平空间维度：[bs, width, h, w] -> [bs, h*w, width]
-            x = x.reshape(x.shape[0], x.shape[1], -1)
-            x = x.permute(0, 2, 1)  # LND 格式
-            
-            # 添加 cls token：[bs, 1+grid**2, width]
-            x = torch.cat(
-                [self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device),
-                x], dim=1)
-            
-            # 添加位置编码
-            if (h, w) == self.grid_size:
-                pe = self.positional_embedding.to(x.dtype)
-            else:
-                pe = self.rescale_positional_embedding(out_size=(h, w), dtype=x.dtype)
-            x = x + pe
-            
-            # Patch Dropout（可选）和 LayerNorm
-            x = self.patch_dropout(x)
-            x = self.ln_pre(x)
-            
-            # Transformer 编码器提取特征
-            x = x.permute(1, 0, 2)  # NLD -> LND
-            x = self.transformer.extract_feature_map(x)
-            x = x.permute(1, 0, 2)  # LND -> NLD
-            
-            # 后处理：LayerNorm + 投影 + 归一化
-            tokens = self.ln_post(x)
-            if self.proj is not None:
-                tokens = tokens @ self.proj
-            tokens = F.normalize(tokens, dim=-1)
-            
+            x = self._embeds(x)
+            x = self.transformer(x)
+            pooled, tokens = self._pool(x)
+            pooled = pooled @ self.proj
+            pooled = F.normalize(pooled, dim=-1)
             # 重塑为特征图：[bs, dim, h, w]
-            feature_map = tokens.view(bs, h, w, -1).permute(0, 3, 1, 2)
-        return feature_map
+            feature_map = pooled.view(bs, h, w, -1).permute(0, 3, 1, 2)
+        return feature_map, pooled
 
-    def student_encode(self, x, normed_boxes, teacher_cls_features):
+    def student_encode(self, x, normed_boxes):
         """
         学生模型编码：使用 RoIAlign + 注意力池化提取区域特征
         
@@ -1043,40 +1012,12 @@ class VisionTransformer(nn.Module):
         Returns:
             pooled_features: 池化后的区域特征 [batch_size * max_boxes, dim]
         """
-        # ==================== 1. 提取特征图 ====================
-        # Patch Embedding：将图像分割为 patch 并映射到特征维度
-        x = self.conv1(x)  # shape = [*, width, grid, grid]
-        bs, _, h, w = x.shape  # bs=批次大小，h/w=patch 网格的高/宽
-        
-        # 展平空间维度：[bs, width, h, w] -> [bs, h*w, width]
-        x = x.reshape(x.shape[0], x.shape[1], -1)
-        x = x.permute(0, 2, 1)  # LND 格式
-        
-        # 添加 cls token：[bs, 1+grid**2, width]
-        x = torch.cat(
-            [self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device),
-             x], dim=1)
-        
-        # 添加位置编码
-        if (h, w) == self.grid_size:
-            pe = self.positional_embedding.to(x.dtype)
-        else:
-            pe = self.rescale_positional_embedding(out_size=(h, w), dtype=x.dtype)
-        x = x + pe
-        
-        # Patch Dropout（可选）和 LayerNorm
-        x = self.patch_dropout(x)
-        x = self.ln_pre(x)
-        
-        # Transformer 编码器提取特征
-        x = x.permute(1, 0, 2)  # NLD -> LND
-        x = self.transformer.extract_feature_map(x)
-        x = x.permute(1, 0, 2)  # LND -> NLD
-        
-        # 后处理：LayerNorm + 投影 + 归一化
-        tokens = self.ln_post(x)
-        if self.proj is not None:
-            tokens = tokens @ self.proj
+        x = self._embeds(x)
+        bs, sq, dim = x.shape
+        h = w = int((sq-1)**0.5)
+        x = self.transformer(x)
+        pooled, tokens = self._pool(x)
+        tokens = tokens @ self.proj
         tokens = F.normalize(tokens, dim=-1)
         
         # 重塑为特征图：[bs, dim, h, w]
@@ -1091,19 +1032,19 @@ class VisionTransformer(nn.Module):
         roi_feat = roi_align(
             feature_map,      # [batch_size, dim, h, w]
             denormalized_boxes,  # [batch_size, max_boxes, 4] 或 List[Tensor]
-            (7, 7),       # 固定输出尺寸 7×7
+            (1, 1),       # 固定输出尺寸 7×7
             1.0, -1, True
         )  # [batch_size*max_boxes, dim, 7, 7]
 
-        # 安全 reshape: [N, dim, 7,7] -> [N, 49, dim]
-        roi_feat = roi_feat.flatten(2).transpose(1, 2)
+        # 安全 reshape: [N, dim, 1,1] -> [N, dim]
+        roi_feat = roi_feat.squeeze(2).squeeze(2)
 
         # teacher_cls_features = teacher_cls_features.view(batch_size*max_boxes, -1)
 
         # 注意力池化
-        pooled_features = self._attn_pool(roi_feat, teacher_cls_features)
+        # pooled_features = self._attn_pool(roi_feat, teacher_cls_features)
 
-        return pooled_features
+        return roi_feat
 
     def _attn_pool(self, roi_feat, teacher_cls_features):
         """

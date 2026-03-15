@@ -56,6 +56,7 @@ for batch_idx, batch_data in enumerate(dataloader):
     # masks: 有效区域掩码 [batch_size, max_boxes] (True 表示有效，False 表示填充)
     # img_names: 图片名称列表
     images, boxes_templates, image_crops_templates, masks, img_names = batch_data
+    print(images.shape)
     student_features = model._eval(images)
     print(f"Student's feature shape: {student_features.shape}")
     break

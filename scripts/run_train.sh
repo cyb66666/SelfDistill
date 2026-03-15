@@ -44,7 +44,7 @@ PRECISION="fp32"  # 模型使用 fp32 精度，AMP 会自动处理 FP16 计算
 
 # ==================== 多卡训练配置 ====================
 
-USE_SINGLE_GPU=false
+USE_SINGLE_GPU=true
 
 if [ "$USE_SINGLE_GPU" = false ]; then
    NUM_GPUS=2
@@ -74,7 +74,7 @@ if [ "$USE_SINGLE_GPU" = true ]; then
    NUM_WORKERS=${BASE_NUM_WORKERS}
   echo "Workers: ${NUM_WORKERS}"
     
-  /usr/local/miniconda3/envs/py310/bin/python tools/train_distill.py \
+  /usr/local/miniconda3/envs/py310/bin/python src/training/train_distill.py \
         --rs3-tar-dir ${RS3_TAR_DIR} \
         --rs3-val-dir ${RS3_VAL_DIR} \
         --batch-size ${BATCH_SIZE} \
@@ -104,7 +104,7 @@ else
   /usr/local/miniconda3/envs/py310/bin/torchrun \
         --nproc_per_node=${NUM_GPUS} \
         --master_port=29600 \
- tools/train_distill.py \
+ src/training/train_distill.py \
             --rs3-tar-dir ${RS3_TAR_DIR} \
             --rs3-val-dir ${RS3_VAL_DIR} \
             --batch-size ${PER_GPU_BATCH_SIZE} \
