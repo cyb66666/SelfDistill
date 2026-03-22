@@ -329,6 +329,28 @@ class ResidualAttentionBlock(nn.Module):
         else:
             return attn_output
 
+    def qq_kk_vv_attn(self, x):
+        x = self.ln_1(x)
+        attn_layer = self.attn
+        num_heads = attn_layer.num_heads
+        _, bsz, embed_dim = x.size()
+        head_dim = embed_dim // num_heads
+        scale = head_dim ** -0.5
+        q, k, v = F.linear(x, attn_layer.in_proj_weight, attn_layer.in_proj_bias).chunk(3, dim=-1)
+        q = q.contiguous().view(-1, bsz * num_heads, head_dim).transpose(0, 1)
+        k = k.contiguous().view(-1, bsz * num_heads, head_dim).transpose(0, 1)
+        v = v.contiguous().view(-1, bsz * num_heads, head_dim).transpose(0, 1)
+
+        qq_attn = torch.bmm(q, q.transpose(1, 2)) * scale
+        kk_attn = torch.bmm(k, k.transpose(1, 2)) * scale
+        vv_attn = torch.bmm(v, v.transpose(1, 2)) * scale
+        attn_weights = F.softmax(qq_attn, dim=-1) + F.softmax(kk_attn, dim=-1) + F.softmax(vv_attn, dim=-1)
+
+        attn_output = torch.bmm(attn_weights, v)
+        attn_output = attn_output.transpose(0, 1).contiguous().view(-1, bsz, embed_dim)
+        attn_output = attn_layer.out_proj(attn_output)
+
+        return attn_output
 
 class CustomResidualAttentionBlock(nn.Module):
     def __init__(
@@ -605,20 +627,12 @@ class Transformer(nn.Module):
             x = x.transpose(0, 1)    # LND -> NLD
         return x
 
-    def extract_feature_map(self, x, return_forward=False,mode='qq_vfm_distill'):
+    def extract_feature_map(self, x):
         for i in range(self.layers - 1):
             x = self.resblocks[i](x)
-        # x = x[1:, :, :] 
-        # # 最后一层输入移除[cls]
-        if mode=='maskclip':
-            x = self.resblocks[-1].forward_without_attn(x)
-        elif mode in ['csa','csa_vfm_distill']:
-            x = self.resblocks[-1].csa_attn(x,mode)
-        elif mode in ['qq','kk','qq_vfm_distill','kk_vfm_distill']:
-            x = self.resblocks[-1].ss_attn(x, mode)
-        else:
-            raise NotImplementedError(f"The mode '{mode}' is not implemented.")
-        return x
+        x_forward = self.resblocks[-1](x)
+        x = self.resblocks[-1].qq_kk_vv_attn(x)
+        return x, x_forward
 
 
 def _expand_token(token, batch_size: int):
@@ -971,7 +985,7 @@ class VisionTransformer(nn.Module):
         
         return pooled, tokens
 
-    def teacher_roi_encode(self, x, mask):
+    def teacher_roi_encode(self, x):
         """
         # x: 裁剪区域张量 [batch_size, max_boxes, 3, 224, 224]
         # masks: 有效区域掩码 [batch_size, max_boxes] (True 表示有效，False 表示填充)
@@ -982,22 +996,29 @@ class VisionTransformer(nn.Module):
         x_merged = x.view(batch_size * max_boxes, *x.shape[2:])
         
         # forward 计算
-        cls_token, _ = self.forward(x_merged)  # [batch_size * max_boxes, dim]
+        cls_token, tokens = self.forward(x_merged)  # [batch_size * max_boxes, dim]
         
-        # 拆分维度：[batch_size * max_boxes, dim] -> [batch_size, max_boxes, dim]
-        # cls_token = cls_token.view(batch_size, max_boxes, -1)
+        pooled_tokens = tokens.mean(dim=1)
+        pooled_tokens = pooled_tokens @ self.proj
         
-        return cls_token
+        return pooled_tokens
 
     def _eval(self, x):
         with torch.no_grad():
             x = self._embeds(x)
-            x = self.transformer(x)
-            pooled, tokens = self._pool(x)
+            bs, sq, dim = x.shape
+            h = w = int((sq-1)**0.5)
+            x, x_forward = self.transformer.extract_feature_map(x)
+
+            pooled, _ = self._pool(x_forward) # 原始全局语义(cls token, 传统注意力)
+
+            x = self.ln_post(x) # 归一化
+            tokens = x[:, 1:] # 特征tokens
+            tokens = tokens @ self.proj
             pooled = pooled @ self.proj
-            pooled = F.normalize(pooled, dim=-1)
+            
             # 重塑为特征图：[bs, dim, h, w]
-            feature_map = pooled.view(bs, h, w, -1).permute(0, 3, 1, 2)
+            feature_map = tokens.view(bs, h, w, -1).permute(0, 3, 1, 2)
         return feature_map, pooled
 
     def student_encode(self, x, normed_boxes):
@@ -1015,10 +1036,14 @@ class VisionTransformer(nn.Module):
         x = self._embeds(x)
         bs, sq, dim = x.shape
         h = w = int((sq-1)**0.5)
-        x = self.transformer(x)
-        pooled, tokens = self._pool(x)
+        x, x_forward = self.transformer.extract_feature_map(x)
+
+        pooled, _ = self._pool(x_forward) # 原始全局语义(cls token, 传统注意力)
+
+        x = self.ln_post(x) # 归一化
+        tokens = x[:, 1:] # 特征tokens
         tokens = tokens @ self.proj
-        tokens = F.normalize(tokens, dim=-1)
+        pooled = pooled @ self.proj
         
         # 重塑为特征图：[bs, dim, h, w]
         feature_map = tokens.view(bs, h, w, -1).permute(0, 3, 1, 2)
@@ -1032,19 +1057,13 @@ class VisionTransformer(nn.Module):
         roi_feat = roi_align(
             feature_map,      # [batch_size, dim, h, w]
             denormalized_boxes,  # [batch_size, max_boxes, 4] 或 List[Tensor]
-            (1, 1),       # 固定输出尺寸 7×7
+            (1, 1),       # 固定输出尺寸 1x1
             1.0, -1, True
         )  # [batch_size*max_boxes, dim, 7, 7]
 
         # 安全 reshape: [N, dim, 1,1] -> [N, dim]
-        roi_feat = roi_feat.squeeze(2).squeeze(2)
-
-        # teacher_cls_features = teacher_cls_features.view(batch_size*max_boxes, -1)
-
-        # 注意力池化
-        # pooled_features = self._attn_pool(roi_feat, teacher_cls_features)
-
-        return roi_feat
+        roi_feat = roi_feat.squeeze(2).squeeze(2) # 区域池化特征
+        return roi_feat, pooled
 
     def _attn_pool(self, roi_feat, teacher_cls_features):
         """

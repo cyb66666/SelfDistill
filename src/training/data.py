@@ -75,7 +75,8 @@ class RS3GridDistillDataset(Dataset):
             .decode(self.rs3_wds_decoder)  # 使用自定义解码器
             .rename(
                 img_content="img_content",  # 图片内容
-                img_name="img_name"         # 图片名称
+                img_name="img_name",        # 图片名称
+                txt="caption"               # 文本注释（RS3 中使用 caption 字段）
             )
         )
         
@@ -95,11 +96,11 @@ class RS3GridDistillDataset(Dataset):
         功能：将字节流解码为 Python 对象
         
         Args:
-            key: 数据键名（如 .img_content, .img_name）
+            key: 数据键名（如 .img_content, .img_name, .txt）
             value: 数据值（字节流）
         
         Returns:
-            解码后的对象（PIL Image 或字符串）
+            解码后的对象（PIL Image、字符串或 None）
         """
         if key.endswith(".img_content"):
             # 图片内容：字节流 -> PIL Image
@@ -108,6 +109,9 @@ class RS3GridDistillDataset(Dataset):
             return img
         elif key.endswith(".img_name"):
             # 图片名称：字节流 -> 字符串
+            return value.decode("utf-8")
+        elif key.endswith(".txt"):
+            # 文本注释：字节流 -> 字符串
             return value.decode("utf-8")
         return value  # 其他字段直接返回
     
@@ -263,12 +267,44 @@ class RS3GridDistillDataset(Dataset):
         使用迭代器方式从 WebDataset 中获取下一个样本
         支持自动重试（如果图片加载失败）
         
+        Args:
+            idx: 样本索引（未实际使用，WebDataset 是流式的）
+        
         Returns:
-            new_image: 整图张量 [3, 1024, 1024]
-            boxes_template: 边界框模板 [max_anns, 5] (xyxy + 有效标志)
-            image_crops_template: 裁剪区域张量 [max_anns, 3, 224, 224]
-            mask_template: 有效区域掩码 [max_anns] (True=有效，False=填充)
-            image_name: 图片名称
+            tuple: 包含以下元素的元组：
+                - new_image: 整图张量 [3, 1024, 1024]
+                    * RGB 三通道遥感图像
+                    * 已 resize 到 1024×1024
+                    * 已归一化（mean=[0.3759, 0.3912, 0.3618], std=[0.2582, 0.2472, 0.2461]）
+                    * 值范围 [0, 1] 的 tensor
+                
+                - boxes_template: 边界框模板 [max_anns, 5]
+                    * 前 4 列：归一化坐标 [x0, y0, x1, y1]，范围 [0, 1]
+                        - (x0, y0): 左上角坐标
+                        - (x1, y1): 右下角坐标
+                    * 第 5 列：有效标志（1.0=有效区域，0.0=填充区域）
+                    * 前 num_valid_boxes 行为真实裁剪区域，其余为填充
+                
+                - image_crops_template: 裁剪区域张量 [max_anns, 3, 224, 224]
+                    * 从原图裁剪出的网格区域
+                    * 每个 crop 已 resize 到 224×224
+                    * 已归一化（与整图相同的均值和标准差）
+                    * 前 num_valid_boxes 个为真实裁剪，其余为零填充
+                
+                - mask_template: 有效区域掩码 [max_anns]
+                    * bool 类型 tensor
+                    * True: 对应位置是有效的裁剪区域
+                    * False: 对应位置是填充区域
+                    * 用于损失计算时屏蔽无效的 padding 部分
+                
+                - image_name: 图片名称（字符串）
+                    * RS3 数据集中的唯一标识符
+                    * 格式如 "RS3-1024-000001"
+                
+                - text_annotation: 文本注释（字符串或 None）
+                    * 图像的文本描述/标注
+                    * 如果数据集中包含 .txt 文件则加载
+                    * 如果没有文本注释则为 None
         """
         # WebDataset 作为迭代器，需要通过迭代来获取数据
         # 对于训练用途，可以配合 DataLoader 的 worker_init_fn 使用
@@ -286,6 +322,7 @@ class RS3GridDistillDataset(Dataset):
         
         old_image = sample['img_content']
         image_name = sample['img_name']
+        text_annotation = sample.get('txt', None)  # 获取文本注释（可选）
         
         # 验证并加载图片
         old_image = self.read_image(old_image)
@@ -313,11 +350,6 @@ class RS3GridDistillDataset(Dataset):
         # 实际有效的 box 数量
         num_valid_boxes = boxes.shape[0]
         
-        # boxes 已经是归一化比例，直接使用（不需要缩放和归一化）
-        # boxes[:, :4] *= scale  # ❌ 不再需要
-        # boxes[:, [0, 2]] /= w  # ❌ 不再需要
-        # boxes[:, [1, 3]] /= h  # ❌ 不再需要
-        
         # 填充模板
         boxes_template[:num_valid_boxes, :4] = boxes
         boxes_template[:num_valid_boxes, 4] = 1.0
@@ -327,7 +359,7 @@ class RS3GridDistillDataset(Dataset):
         # 设置掩码：前 num_valid_boxes 个位置为 True，其余为 False
         mask_template[:num_valid_boxes] = True
         
-        return new_image, boxes_template, image_crops_template, mask_template, image_name
+        return new_image, boxes_template, image_crops_template, mask_template, image_name, text_annotation
 
 
 def get_scale(old_image, new_image):
@@ -492,7 +524,14 @@ if __name__ == "__main__":
         # image_crops_templates: 裁剪区域张量 [batch_size, max_boxes, 3, 224, 224]
         # masks: 有效区域掩码 [batch_size, max_boxes] (True 表示有效，False 表示填充)
         # img_names: 图片名称列表
-        images, boxes_templates, image_crops_templates, masks, img_names = batch_data
+        # text_annotations: 文本注释列表（如果有）
+        if len(batch_data) == 6:
+            # 包含文本注释的版本
+            images, boxes_templates, image_crops_templates, masks, img_names, text_annotations = batch_data
+        else:
+            # 不包含文本注释的旧版本
+            images, boxes_templates, image_crops_templates, masks, img_names = batch_data
+            text_annotations = None
         
         print(f"\n批次 {batch_idx + 1}:")
         print(f"  图片张量形状：{images.shape}")
@@ -502,6 +541,8 @@ if __name__ == "__main__":
         print(f"  图片数量：{len(img_names)}")
         print(f"  第一张图片名：{img_names[0]}")
         print(f"  第一张图片的有效区域数：{masks[0].sum().item()}")
+        if text_annotations is not None:
+            print(f"  第一个文本注释：{text_annotations[0][:100]}...")  # 只显示前 100 字符
         
         # 只显示前 2 个批次
         if batch_idx >= 1:

@@ -11,7 +11,7 @@ import gc
 print("正在加载官方RS5M预训练模型...")
 model = open_clip.create_model(
     "ViT-B-32",
-    pretrained='pretrained/RS5M_ViT-B-32.pt',
+    pretrained=False,
     precision="fp32",
     device='cuda'
 )
@@ -26,7 +26,7 @@ visual_state_dict = student_checkpoint["state_dict"]
 # 注意：有些checkpoint可能包含"visual."前缀，有些可能没有
 try:
     # 尝试直接加载
-    model.visual.load_state_dict(visual_state_dict, strict=False)
+    model.load_state_dict(visual_state_dict, strict=False)
     print("✓ 视觉编码器权重加载完成（直接加载）")
 except Exception as e:
     print(f"直接加载失败，尝试处理键名: {e}")
@@ -55,8 +55,8 @@ print("\n✓ 模型已设置为评估模式并移至GPU")
 h = 1024
 w = 1024
 patch = h // 32
-image_path = 'test_image/sample_007_millionaid_P0430326.jpg'
-text_str = "forest"
+image_path = 'test_image/sample_009_fmow_ground_transportation_station_95_2_rgb.jpg'
+text_str = "road"
 print(f"\n正在加载图像: {image_path}")
 image = Image.open(image_path).convert('RGB')
 
@@ -76,7 +76,7 @@ print(f"✓ 图像预处理完成，tensor shape: {image_tensor.shape}")
 # ==================== 第五步：进行预测和可视化 ====================
 with torch.no_grad():
     # 视觉编码
-    pooled, student_features_map = model.visual(image_tensor)
+    student_features_map, pooled = model.visual._eval(image_tensor)
     print(f"pooled shape: {pooled.shape}, student_features_map shape: {student_features_map.shape}")
     
     # 文本编码
@@ -84,16 +84,6 @@ with torch.no_grad():
     tokens = open_clip.tokenize(text).to(device="cuda")
     text_features = model.encode_text(tokens, normalize=True).to(dtype=torch.float32)
     print(f"✓ 文本特征提取完成：'{text_str}', shape: {text_features.shape}")
-    
-    # ====== 关键修正：计算相似度热力图 ======
-    # 1. 将特征图投影到与文本相同的空间
-    if hasattr(model.visual, 'proj') and model.visual.proj is not None:
-        # 如果 visual 模块有 proj 层
-        student_features_map = student_features_map @ model.visual.proj
-    else:
-        # 如果没有独立的 proj 层，可能需要使用模型的 text_projection
-        print("警告：model.visual 没有 proj 属性，使用 model.text_projection")
-        student_features_map = student_features_map @ model.text_projection
     
     # 2. 重塑特征图 [B, D, H, W] -> [B, D, H*W]
     student_features_flat = student_features_map.reshape(1, 512, patch * patch)

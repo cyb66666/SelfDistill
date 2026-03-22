@@ -99,15 +99,16 @@ def setup_logging(output_dir: str, rank: int = 0):
 
 def build_models(config: TrainConfig, logger: logging.Logger):
     """
-    构建 Teacher 和 Student 两个独立模型
+    构建 Teacher、Student 模型和文本编码器
     
     Args:
         config: 训练配置
         logger: 日志记录器
     
     Returns:
-        teacher_model: 冻结的 teacher 模型
-        student_model: 可训练的 student 模型
+        teacher_model: 冻结的 teacher 视觉模型
+        student_model: 可训练的 student 视觉模型
+        text_encoder: 冻结的文本编码器
     """
     logger.info(f"Loading models from {config.pretrained_path}...")
     
@@ -118,7 +119,7 @@ def build_models(config: TrainConfig, logger: logging.Logger):
         pretrained=config.pretrained_path,
         precision=config.precision,
         device='cpu'
-    ).visual
+    )
     
     # Teacher 模型冻结所有参数
     for param in teacher_model.parameters():
@@ -137,18 +138,18 @@ def build_models(config: TrainConfig, logger: logging.Logger):
         pretrained=config.pretrained_path,
         precision=config.precision,
         device='cpu'
-    ).visual
+    )
     
     # Student 模型保持可训练状态
     student_model.train()
+
     
     logger.info(f"✓ Student model loaded with same initial weights")
     logger.info(f"  - Model type: {type(student_model).__name__}")
     logger.info(f"  - Parameters: {sum(p.numel() for p in student_model.parameters()):,}")
-    logger.info(f"  - Requires grad: {sum(p.requires_grad for p in student_model.parameters()):,} (trainable)")
-    
-    return teacher_model, student_model
+    logger.info(f"  - Requires grad: {sum(p.requires_grad for p in student_model.parameters()):,} (trainable)")    
 
+    return teacher_model, student_model
 
 def build_dataloader(config: TrainConfig, split: str = 'train', shuffle: bool = True):
     """
@@ -189,36 +190,20 @@ def build_dataloader(config: TrainConfig, split: str = 'train', shuffle: bool = 
 
 class DistillLoss(nn.Module):
     """
-    知识蒸馏损失
+    知识蒸馏损失（包含两种独立的损失计算）
     
-    支持多种损失类型：
-    1. MSE Loss: 均方误差
-    2. L1 Loss: 平均绝对误差
-    3. Cosine Embedding Loss: 余弦嵌入损失
-    4. Cosine Similarity Loss: 逐位置余弦相似度损失（公式：L = 1/(m*n) * ΣΣ(1 - cos(s_ij, t_ij))）
+    1. cosine_distill_loss: 逐位置余弦相似度蒸馏损失（区域特征对齐）
+    2. clip_contrastive_loss: CLIP 风格对比学习损失（全局图文匹配）
     """
     
-    def __init__(self, loss_type: str = 'mse'):
+    def __init__(self):
         super().__init__()
-        self.loss_type = loss_type
-        
-        if loss_type == 'mse':
-            self.criterion = nn.MSELoss(reduction='none')
-        elif loss_type == 'l1':
-            self.criterion = nn.L1Loss(reduction='none')
-        elif loss_type == 'cosine':
-            self.criterion = nn.CosineEmbeddingLoss(reduction='none')
-        elif loss_type == 'cosine_sim':
-            # 逐位置余弦相似度损失
-            pass  # 不需要额外的 criterion
-        else:
-            raise ValueError(f"Unsupported loss type: {loss_type}")
     
-    def forward(self, student_features: torch.Tensor, 
-                teacher_features: torch.Tensor,
-                mask: torch.Tensor) -> torch.Tensor:
+    def cosine_distill_loss(self, student_features: torch.Tensor, 
+                           teacher_features: torch.Tensor,
+                           mask: torch.Tensor) -> torch.Tensor:
         """
-        计算蒸馏损失
+        计算逐位置余弦相似度蒸馏损失
         
         Args:
             student_features: Student 特征 [N, dim]
@@ -236,29 +221,55 @@ class DistillLoss(nn.Module):
         student_valid = student_features[valid_mask]
         teacher_valid = teacher_features[valid_mask]
         
-        if self.loss_type in ['mse', 'l1']:
-            loss = self.criterion(student_valid, teacher_valid).mean(dim=-1)
-            loss = loss.mean()
-        elif self.loss_type == 'cosine':
-            target = torch.ones(student_valid.shape[0], device=student_valid.device)
-            loss = self.criterion(student_valid, teacher_valid, target).mean()
-        elif self.loss_type == 'cosine_sim':
-            # 逐位置余弦相似度损失
-            # L = 1/(m*n) * ΣΣ(1 - cos(s_ij, t_ij))
-            # cos(a,b) = (a·b) / (|a| * |b|)
-            
-            # 归一化特征向量
-            student_norm = F.normalize(student_valid, p=2, dim=-1)  # [N_valid, dim]
-            teacher_norm = F.normalize(teacher_valid, p=2, dim=-1)  # [N_valid, dim]
-            
-            # 计算逐位置余弦相似度
-            cosine_sim = (student_norm * teacher_norm).sum(dim=-1)  # [N_valid]
-            
-            # 损失 = 1 - 余弦相似度
-            loss = (1 - cosine_sim).mean()
+        # 归一化特征向量（L2 归一化）
+        student_norm = F.normalize(student_valid, p=2, dim=-1)  # [N_valid, dim]
+        teacher_norm = F.normalize(teacher_valid, p=2, dim=-1)  # [N_valid, dim]
+        
+        # 计算逐位置余弦相似度
+        cosine_sim = (student_norm * teacher_norm).sum(dim=-1)  # [N_valid]
+        
+        # 损失 = 1 - 余弦相似度
+        loss = (1 - cosine_sim).mean()
         
         return loss
-
+    
+    def clip_contrastive_loss(self, image_features: torch.Tensor, 
+                              text_features: torch.Tensor,
+                              logit_scale: torch.Tensor) -> torch.Tensor:
+        """
+        计算 CLIP 风格的对比损失
+        
+        Args:
+            image_features: 图像特征 [B, D]
+            text_features: 文本特征 [B, D]
+            logit_scale: 温度系数（exp 后的结果，通常为 exp(4.6052) ≈ 100）
+        
+        Returns:
+            loss: 对比损失标量值
+        """
+        # 1. L2 归一化特征（确保计算的是余弦相似度）
+        image_features = F.normalize(image_features, dim=-1)  # [B, D]
+        text_features = F.normalize(text_features, dim=-1)    # [B, D]
+        
+        # 2. 计算图文相似度矩阵 [B, B]
+        # image_logits[i][j] 表示第 i 张图与第 j 段文本的相似度
+        logits_per_image = logit_scale * image_features @ text_features.t()
+        logits_per_text = logits_per_image.t()  # [B, B]
+        
+        # 3. 构建标签（对角线为正样本，即第 i 个样本匹配第 i 个样本）
+        batch_size = image_features.shape[0]
+        labels = torch.arange(batch_size, device=image_features.device)
+        
+        # 4. 计算对称交叉熵损失
+        # 图像侧损失：每个图像对所有文本的相似度做交叉熵，正样本是对应文本
+        loss_im = F.cross_entropy(logits_per_image, labels)
+        # 文本侧损失：每个文本对所有图像的相似度做交叉熵，正样本是对应图像
+        loss_txt = F.cross_entropy(logits_per_text, labels)
+        
+        # 5. 总损失：图像侧 + 文本侧 平均
+        loss = (loss_im + loss_txt) / 2
+        
+        return loss
 
 def _get_warmup_lr(optimizer, step: int, warmup_length: int, base_lr: float):
     """
@@ -330,7 +341,19 @@ def train_one_epoch(
         current_lr = scheduler(current_step)
         
         # 解包数据
-        images, boxes_templates, image_crops_templates, masks, img_names = batch_data
+        images, boxes_templates, image_crops_templates, masks, img_names, text_annotations = batch_data
+        
+        # 编码文本（使用冻结的文本编码器）
+        with torch.no_grad():
+            # 将文本注释从 bytes 解码为字符串
+            if text_annotations is not None:
+                text_strings = [t.decode('utf-8') if isinstance(t, bytes) else t for t in text_annotations]
+                # Tokenize 文本
+                tokens = open_clip.tokenize(text_strings).to(config.device, non_blocking=True)
+                # 提取文本特征（使用 CLIP 模型的 encode_text 方法）
+                text_features = teacher_model.encode_text(tokens)  # [batch_size, dim]
+            else:
+                text_features = None
         
         # 移动到设备
         images = images.to(config.device, non_blocking=True)
@@ -342,16 +365,19 @@ def train_one_epoch(
         with autocast(enabled=config.use_amp):
             # Teacher 编码（不计算梯度，使用独立的 teacher 模型）
             with torch.no_grad():
-                teacher_features = teacher_model.teacher_roi_encode(image_crops_templates, masks)
+                teacher_features = teacher_model.visual.teacher_roi_encode(image_crops_templates)
             
             # Student 编码（使用独立的 student 模型）
             # 如果是 DDP 包装的模型，需要通过 .module 访问原始模型
             if hasattr(student_model, 'module'):
-               student_features = student_model.module.student_encode(images, boxes_templates)
+               student_features, pooled = student_model.visual.module.student_encode(images, boxes_templates)
             else:
-               student_features = student_model.student_encode(images, boxes_templates)
+               student_features, pooled = student_model.visual.student_encode(images, boxes_templates)
+            # pooled为学生模型的cls token
             # 计算损失
-            loss = criterion(student_features, teacher_features, masks.view(-1))
+            loss_cos_sim = criterion.cosine_distill_loss(student_features, teacher_features, masks.view(-1))
+            loss_clip = criterion.clip_contrastive_loss(pooled, text_features, student_model.logit_scale)
+            loss = 0.5*loss_cos_sim + loss_clip
         
         # 反向传播
         optimizer.zero_grad()
@@ -442,7 +468,15 @@ def validate(
     )
 
     for batch_idx, batch_data in enumerate(pbar):
-        images, boxes_templates, image_crops_templates, masks, img_names = batch_data
+        images, boxes_templates, image_crops_templates, masks, img_names, text_annotations = batch_data
+        
+        # 编码文本（使用冻结的文本编码器）
+        if text_annotations is not None:
+            text_strings = [t.decode('utf-8') if isinstance(t, bytes) else t for t in text_annotations]
+            tokens = open_clip.tokenize(text_strings).to(config.device, non_blocking=True)
+            text_features = teacher_model.encode_text(tokens)  # [batch_size, dim]
+        else:
+            text_features = None
 
         images = images.to(config.device, non_blocking=True)
         boxes_templates = boxes_templates.to(config.device, non_blocking=True)
@@ -450,18 +484,20 @@ def validate(
         masks = masks.to(config.device, non_blocking=True)
 
         # forward
-        teacher_features = teacher_model.teacher_roi_encode(image_crops_templates, masks)
+        teacher_features = teacher_model.visual.teacher_roi_encode(image_crops_templates)
 
         if hasattr(student_model, 'module'):
-            student_features = student_model.module.student_encode(
+            student_features, pooled = student_model.visual.module.student_encode(
                 images, boxes_templates
             )
         else:
-            student_features = student_model.student_encode(
+            student_features, pooled = student_model.visual.student_encode(
                 images, boxes_templates
             )
 
-        loss = criterion(student_features, teacher_features, masks.view(-1))
+        loss_cos_sim = criterion.cosine_distill_loss(student_features, teacher_features, masks.view(-1))
+        loss_clip = criterion.clip_contrastive_loss(pooled, text_features, student_model.logit_scale)
+        loss = 0.5*loss_cos_sim + loss_clip
 
         total_loss += loss.item()
         num_batches += 1
@@ -774,7 +810,7 @@ def main():
         raise ValueError(f"Unknown scheduler type: {config.scheduler_type}")
     
     # ==================== 构建损失函数 ====================
-    criterion = DistillLoss(loss_type=args.loss_type)
+    criterion = DistillLoss()
     logger.info(f"Loss function: {args.loss_type}")
     
     # ==================== 构建 AMP Scaler ====================
