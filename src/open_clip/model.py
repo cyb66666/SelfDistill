@@ -325,6 +325,10 @@ class CLIP(nn.Module):
 
     def encode_image(self, image, normalize: bool = False):
         features = self.visual(image)
+        # Some vision backbones may return (pooled, tokens). For CLIP-style
+        # global embeddings we only need the pooled vector.
+        if isinstance(features, (tuple, list)):
+            features = features[0]
         return F.normalize(features, dim=-1) if normalize else features
 
     def encode_text(self, text, normalize: bool = False):

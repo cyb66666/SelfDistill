@@ -163,7 +163,21 @@ def load_state_dict(
         try:
             checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=weights_only)
         except TypeError:
+            # Old PyTorch: no `weights_only` kwarg
             checkpoint = torch.load(checkpoint_path, map_location=device)
+        except Exception as e:
+            # PyTorch 2.4+ defaults to weights_only=True; some checkpoints (e.g. RS5M .pth)
+            # pickle numpy scalars / extra metadata and fail the "weights-only" unpickler.
+            # Retrying with weights_only=False is appropriate for trusted local checkpoints.
+            if weights_only and (
+                "Weights only load failed" in str(e)
+                or "UnpicklingError" in type(e).__name__
+            ):
+                checkpoint = torch.load(
+                    checkpoint_path, map_location=device, weights_only=False
+                )
+            else:
+                raise
 
     if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
         state_dict = checkpoint['state_dict']

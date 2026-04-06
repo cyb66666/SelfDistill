@@ -1,0 +1,101 @@
+2026-03-27 16:30:14,659 - [Rank 0] - INFO - ============================================================
+2026-03-27 16:30:14,659 - [Rank 0] - INFO - RS3 Grid Distillation Training
+2026-03-27 16:30:14,659 - [Rank 0] - INFO - ============================================================
+2026-03-27 16:30:14,659 - [Rank 0] - INFO - Configuration:
+2026-03-27 16:30:14,659 - [Rank 0] - INFO -   device: cuda
+2026-03-27 16:30:14,659 - [Rank 0] - INFO -   rs3_tar_dir: /root/data/rs3_filtered
+2026-03-27 16:30:14,659 - [Rank 0] - INFO -   rs3_val_dir: /root/data/rs3_filtered
+2026-03-27 16:30:14,659 - [Rank 0] - INFO -   batch_size: 24
+2026-03-27 16:30:14,659 - [Rank 0] - INFO -   num_workers: 8
+2026-03-27 16:30:14,659 - [Rank 0] - INFO -   whole_image_size: 784
+2026-03-27 16:30:14,659 - [Rank 0] - INFO -   crop_size: 224
+2026-03-27 16:30:14,659 - [Rank 0] - INFO -   model_name: ViT-B-32
+2026-03-27 16:30:14,659 - [Rank 0] - INFO -   pretrained_path: /root/checkpoint/RS5M_ViT-B-32.pt
+2026-03-27 16:30:14,659 - [Rank 0] - INFO -   precision: fp32
+2026-03-27 16:30:14,659 - [Rank 0] - INFO -   epochs: 6
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   lr: 1.84e-06
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   weight_decay: 0.1
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   warmup_epochs: 1
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   warmup_steps: 1500
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   scheduler_type: cosine
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   cooldown_steps: 0
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   grad_clip: 1.0
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   distill_align: roi_to_pooled
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   teacher_last_attn_type: qq+kk+vv
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   distill_loss_weight: 1.0
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   clip_loss_weight: 0.5
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   use_rafa: False
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   use_hycd: True
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   rafa_weight: 0.1
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   hycd_weight: 0.1
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   hycd_temperature: 1.0
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   hycd_alpha_blending: 0.5
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   rafa_prior_mu: 0.0
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   rafa_prior_sigma: 1.0
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   rafa_prior_stats_path: 
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   rafa_share_random_feat: True
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   optimizer_betas: (0.9, 0.98)
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   optimizer_eps: 1e-08
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   val_tar_count: 2
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   train_tar_count: 30
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   output_dir: ./checkpoints/v8.1
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   log_dir: ./logs/v8.1
+2026-03-27 16:30:14,660 - [Rank 0] - INFO -   tensorboard_dir: ./logs/v8.1/tensorboard
+2026-03-27 16:30:14,661 - [Rank 0] - INFO -   save_freq: 1
+2026-03-27 16:30:14,661 - [Rank 0] - INFO -   log_freq: 50
+2026-03-27 16:30:14,661 - [Rank 0] - INFO -   local_rank: -1
+2026-03-27 16:30:14,661 - [Rank 0] - INFO -   world_size: 1
+2026-03-27 16:30:14,661 - [Rank 0] - INFO -   use_amp: True
+2026-03-27 16:30:14,661 - [Rank 0] - INFO - 
+2026-03-27 16:30:14,662 - [Rank 0] - INFO - TensorBoard 已启用。查看: tensorboard --logdir ./logs/v8.1/tensorboard
+2026-03-27 16:30:14,662 - [Rank 0] - INFO - Building models...
+2026-03-27 16:30:14,662 - [Rank 0] - INFO - Loading models from /root/checkpoint/RS5M_ViT-B-32.pt...
+2026-03-27 16:30:14,662 - [Rank 0] - INFO - 
+=== Loading Teacher Model ===
+2026-03-27 16:30:14,662 - [Rank 0] - INFO - Parsing model identifier. Schema: None, Identifier: ViT-B-32
+2026-03-27 16:30:14,662 - [Rank 0] - INFO - Loaded built-in ViT-B-32 model config.
+2026-03-27 16:30:14,662 - [Rank 0] - INFO - `pretrained` specifies file path: /root/checkpoint/RS5M_ViT-B-32.pt
+2026-03-27 16:30:14,662 - [Rank 0] - INFO - Instantiating model architecture: CLIP
+2026-03-27 16:30:15,909 - [Rank 0] - INFO - Loading full pretrained weights from: /root/checkpoint/RS5M_ViT-B-32.pt
+2026-03-27 16:30:16,395 - [Rank 0] - INFO - Final image preprocessing configuration set: {'size': (224, 224), 'mode': 'RGB', 'mean': (0.48145466, 0.4578275, 0.40821073), 'std': (0.26862954, 0.26130258, 0.27577711), 'interpolation': 'bicubic', 'resize_mode': 'shortest', 'fill_color': 0}
+2026-03-27 16:30:16,396 - [Rank 0] - INFO - Model ViT-B-32 creation process complete.
+2026-03-27 16:30:16,397 - [Rank 0] - INFO - ✓ Teacher model loaded and frozen
+2026-03-27 16:30:16,397 - [Rank 0] - INFO -   - Model type: CLIP
+2026-03-27 16:30:16,398 - [Rank 0] - INFO -   - Parameters: 151,277,313
+2026-03-27 16:30:16,399 - [Rank 0] - INFO -   - Requires grad: 0 (frozen)
+2026-03-27 16:30:16,399 - [Rank 0] - INFO - 
+=== Loading Student Model ===
+2026-03-27 16:30:16,399 - [Rank 0] - INFO - Parsing model identifier. Schema: None, Identifier: ViT-B-32
+2026-03-27 16:30:16,399 - [Rank 0] - INFO - Loaded built-in ViT-B-32 model config.
+2026-03-27 16:30:16,399 - [Rank 0] - INFO - `pretrained` specifies file path: /root/checkpoint/RS5M_ViT-B-32.pt
+2026-03-27 16:30:16,399 - [Rank 0] - INFO - Instantiating model architecture: CLIP
+2026-03-27 16:30:17,579 - [Rank 0] - INFO - Loading full pretrained weights from: /root/checkpoint/RS5M_ViT-B-32.pt
+2026-03-27 16:30:17,980 - [Rank 0] - INFO - Final image preprocessing configuration set: {'size': (224, 224), 'mode': 'RGB', 'mean': (0.48145466, 0.4578275, 0.40821073), 'std': (0.26862954, 0.26130258, 0.27577711), 'interpolation': 'bicubic', 'resize_mode': 'shortest', 'fill_color': 0}
+2026-03-27 16:30:17,980 - [Rank 0] - INFO - Model ViT-B-32 creation process complete.
+2026-03-27 16:30:17,981 - [Rank 0] - INFO - ✓ Student model loaded with same initial weights
+2026-03-27 16:30:17,982 - [Rank 0] - INFO -   - Model type: CLIP
+2026-03-27 16:30:17,982 - [Rank 0] - INFO -   - Parameters: 151,277,313
+2026-03-27 16:30:17,983 - [Rank 0] - INFO -   - Requires grad: 302 (trainable)
+2026-03-27 16:30:18,334 - [Rank 0] - INFO - Models moved to device: cuda
+2026-03-27 16:30:18,334 - [Rank 0] - INFO - 
+Building dataloaders...
+2026-03-27 16:30:18,338 - [Rank 0] - WARNING - split=val: WebDataset 仅有 2 个 shard(.tar)，num_workers=8 会导致 6 个 worker 分不到数据、验证/训练提前结束。已将 num_workers 限制为 2。
+2026-03-27 16:30:18,338 - [Rank 0] - INFO - Train loader: 4250 batches
+2026-03-27 16:30:18,338 - [Rank 0] - INFO - Val loader: 284 batches
+2026-03-27 16:30:18,338 - [Rank 0] - INFO - 
+Building optimizer...
+2026-03-27 16:30:18,340 - [Rank 0] - INFO - Optimizer: AdamW (lr=1.84e-06, betas=(0.9, 0.98), eps=1e-08, weight_decay=0.1)
+2026-03-27 16:30:18,340 - [Rank 0] - INFO - Optimizing student model parameters only
+2026-03-27 16:30:18,340 - [Rank 0] - INFO - Scheduler: Cosine (warmup_steps=1500, total_steps=25500)
+2026-03-27 16:30:18,340 - [Rank 0] - INFO - Loss function: mse
+2026-03-27 16:30:18,341 - [Rank 0] - INFO - AMP enabled: True
+2026-03-27 16:30:18,341 - [Rank 0] - INFO - 
+============================================================
+2026-03-27 16:30:18,341 - [Rank 0] - INFO - Starting training...
+2026-03-27 16:30:18,341 - [Rank 0] - INFO - ============================================================
+2026-03-27 16:30:18,341 - [Rank 0] - INFO - 
+Epoch [1/6]
+2026-03-27 16:30:18,341 - [Rank 0] - INFO - ------------------------------------------------------------
+2026-03-27 16:30:42,799 - [Rank 0] - INFO - Epoch [1/6] | Batch [50/4250] | Loss: 1.7351 | Time: 24.46s
+2026-03-27 16:31:03,645 - [Rank 0] - INFO - Epoch [1/6] | Batch [100/4250] | Loss: 1.6700 | Time: 45.30s
+2026-03-27 16:31:24,962 - [Rank 0] - INFO - Epoch [1/6] | Batch [150/4250] | Loss: 1.6122 | Time: 66.62s

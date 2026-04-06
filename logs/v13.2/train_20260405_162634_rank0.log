@@ -1,0 +1,134 @@
+2026-04-05 16:26:34,880 - [Rank 0] - INFO - ============================================================
+2026-04-05 16:26:34,880 - [Rank 0] - INFO - RS3 Grid Distillation Training
+2026-04-05 16:26:34,880 - [Rank 0] - INFO - ============================================================
+2026-04-05 16:26:34,880 - [Rank 0] - INFO - Effective weights: base_model_type=clip, pretrained_path=openai
+2026-04-05 16:26:34,880 - [Rank 0] - INFO - Data grid: max_split=3, max_boxes=9
+2026-04-05 16:26:34,880 - [Rank 0] - INFO - Configuration:
+2026-04-05 16:26:34,880 - [Rank 0] - INFO -   device: cuda
+2026-04-05 16:26:34,880 - [Rank 0] - INFO -   dataset: mgrs
+2026-04-05 16:26:34,880 - [Rank 0] - INFO -   mgrs_json_path: /root/data/mgrs/text_info.json
+2026-04-05 16:26:34,880 - [Rank 0] - INFO -   mgrs_image_root: /root/data/mgrs/global_imgs
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   rs3_tar_dir: /root/data/rs3_filtered
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   rs3_val_dir: /root/data/rs3_filtered
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   batch_size: 120
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   num_workers: 8
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   whole_image_size: 224
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   crop_size: 224
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   max_split: 3
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   max_boxes: 9
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   model_name: ViT-B-32
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   base_model_type: clip
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   clip_pretrained_path: openai
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   pretrained_path: openai
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   precision: fp32
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   epochs: 10
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   lr: 3e-07
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   weight_decay: 1.0
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   warmup_epochs: 1
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   warmup_steps: 250
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   scheduler_type: cosine
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   cooldown_steps: 0
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   grad_clip: 1.0
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   distill_align: roi_to_pooled
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   teacher_last_attn_type: qq+kk+vv
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   distill_type: frozen
+2026-04-05 16:26:34,881 - [Rank 0] - INFO -   ema_momentum: 0.99
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   distill_loss_weight: 0.5
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   clip_loss_weight: 1.0
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   use_rafa: False
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   use_hycd: True
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   rafa_weight: 0.1
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   hycd_weight: 0.1
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   hycd_temperature: 1.0
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   hycd_alpha_blending: 0.5
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   rafa_prior_mu: 0.0
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   rafa_prior_sigma: 1.0
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   rafa_prior_stats_path: 
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   rafa_share_random_feat: True
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   optimizer_betas: (0.9, 0.98)
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   optimizer_eps: 1e-08
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   val_tar_count: 1
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   train_tar_count: 9
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   output_dir: ./checkpoints/v13.2
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   log_dir: ./logs/v13.2
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   tensorboard_dir: ./logs/v13.2/tensorboard
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   save_freq: 2
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   log_freq: 50
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   local_rank: -1
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   world_size: 1
+2026-04-05 16:26:34,882 - [Rank 0] - INFO -   use_amp: True
+2026-04-05 16:26:34,883 - [Rank 0] - INFO - 
+2026-04-05 16:26:34,884 - [Rank 0] - INFO - TensorBoard 已启用。查看: tensorboard --logdir ./logs/v13.2/tensorboard
+2026-04-05 16:26:34,884 - [Rank 0] - INFO - Building models...
+2026-04-05 16:26:34,884 - [Rank 0] - INFO - Loading models from openai...
+2026-04-05 16:26:34,884 - [Rank 0] - INFO - 
+=== Loading Teacher Model (frozen copy) ===
+2026-04-05 16:26:34,884 - [Rank 0] - INFO - Parsing model identifier. Schema: None, Identifier: ViT-B-32
+2026-04-05 16:26:34,885 - [Rank 0] - INFO - Loaded built-in ViT-B-32 model config.
+2026-04-05 16:26:35,440 - [Rank 0] - INFO - Instantiating model architecture: CLIP
+2026-04-05 16:26:36,941 - [Rank 0] - INFO - Loading full pretrained weights from: /root/.cache/clip/ViT-B-32.pt
+2026-04-05 16:26:38,787 - [Rank 0] - INFO - Final image preprocessing configuration set: {'size': (224, 224), 'mode': 'RGB', 'mean': (0.48145466, 0.4578275, 0.40821073), 'std': (0.26862954, 0.26130258, 0.27577711), 'interpolation': 'bicubic', 'resize_mode': 'shortest', 'fill_color': 0}
+2026-04-05 16:26:38,787 - [Rank 0] - INFO - Model ViT-B-32 creation process complete.
+2026-04-05 16:26:38,790 - [Rank 0] - INFO - ✓ Teacher: CLIP, frozen, params=151,277,313
+2026-04-05 16:26:38,790 - [Rank 0] - INFO - 
+=== Loading Student Model ===
+2026-04-05 16:26:38,790 - [Rank 0] - INFO - Parsing model identifier. Schema: None, Identifier: ViT-B-32
+2026-04-05 16:26:38,790 - [Rank 0] - INFO - Loaded built-in ViT-B-32 model config.
+2026-04-05 16:26:39,330 - [Rank 0] - INFO - Instantiating model architecture: CLIP
+2026-04-05 16:26:40,667 - [Rank 0] - INFO - Loading full pretrained weights from: /root/.cache/clip/ViT-B-32.pt
+2026-04-05 16:26:42,276 - [Rank 0] - INFO - Final image preprocessing configuration set: {'size': (224, 224), 'mode': 'RGB', 'mean': (0.48145466, 0.4578275, 0.40821073), 'std': (0.26862954, 0.26130258, 0.27577711), 'interpolation': 'bicubic', 'resize_mode': 'shortest', 'fill_color': 0}
+2026-04-05 16:26:42,277 - [Rank 0] - INFO - Model ViT-B-32 creation process complete.
+2026-04-05 16:26:42,279 - [Rank 0] - INFO - ✓ Student: CLIP, trainable, params=151,277,313
+2026-04-05 16:26:42,279 - [Rank 0] - INFO - distill-type=frozen: teacher weights fixed (no EMA)
+2026-04-05 16:26:42,707 - [Rank 0] - INFO - Models moved to device: cuda
+2026-04-05 16:26:42,707 - [Rank 0] - INFO - distill_type=frozen (ema_momentum=0.99 when ema); active => teacher is same module as student after DDP wrap
+2026-04-05 16:26:42,707 - [Rank 0] - INFO - 
+Building dataloaders...
+2026-04-05 16:26:55,893 - [Rank 0] - INFO - MGRS 图像校验通过：已打开 /root/data/mgrs/global_imgs/AID/airport_1.jpg（探测第 1/512 条）
+2026-04-05 16:27:10,832 - [Rank 0] - INFO - MGRS 图像校验通过：已打开 /root/data/mgrs/global_imgs/Power-Plant/000732.jpg（探测第 1/512 条）
+2026-04-05 16:27:12,341 - [Rank 0] - INFO - Train loader: 1497 batches
+2026-04-05 16:27:12,342 - [Rank 0] - INFO - Val loader: 167 batches
+2026-04-05 16:27:12,342 - [Rank 0] - INFO - 
+Building optimizer...
+2026-04-05 16:27:12,344 - [Rank 0] - INFO - Optimizer: AdamW (lr=3e-07, betas=(0.9, 0.98), eps=1e-08, weight_decay=1.0)
+2026-04-05 16:27:12,344 - [Rank 0] - INFO - Optimizer: student parameters only (active mode shares weights with teacher)
+2026-04-05 16:27:12,344 - [Rank 0] - INFO - Scheduler: Cosine (warmup_steps=250, total_steps=14970)
+2026-04-05 16:27:12,344 - [Rank 0] - INFO - Loss function: mse
+2026-04-05 16:27:12,344 - [Rank 0] - INFO - AMP enabled: True
+2026-04-05 16:27:12,344 - [Rank 0] - INFO - 
+============================================================
+2026-04-05 16:27:12,345 - [Rank 0] - INFO - Starting training...
+2026-04-05 16:27:12,345 - [Rank 0] - INFO - ============================================================
+2026-04-05 16:27:12,345 - [Rank 0] - INFO - 
+Epoch [1/10]
+2026-04-05 16:27:12,345 - [Rank 0] - INFO - ------------------------------------------------------------
+2026-04-05 16:27:59,113 - [Rank 0] - INFO - Epoch [1/10] | Batch [50/1497] | Loss: 4.7226 | Time: 46.77s
+2026-04-05 16:28:40,096 - [Rank 0] - INFO - Epoch [1/10] | Batch [100/1497] | Loss: 4.7064 | Time: 87.75s
+2026-04-05 16:29:22,145 - [Rank 0] - INFO - Epoch [1/10] | Batch [150/1497] | Loss: 4.6761 | Time: 129.80s
+2026-04-05 16:30:04,635 - [Rank 0] - INFO - Epoch [1/10] | Batch [200/1497] | Loss: 4.6375 | Time: 172.29s
+2026-04-05 16:30:46,639 - [Rank 0] - INFO - Epoch [1/10] | Batch [250/1497] | Loss: 4.5927 | Time: 214.29s
+2026-04-05 16:31:29,169 - [Rank 0] - INFO - Epoch [1/10] | Batch [300/1497] | Loss: 4.5469 | Time: 256.82s
+2026-04-05 16:32:12,293 - [Rank 0] - INFO - Epoch [1/10] | Batch [350/1497] | Loss: 4.5023 | Time: 299.95s
+2026-04-05 16:32:54,244 - [Rank 0] - INFO - Epoch [1/10] | Batch [400/1497] | Loss: 4.4597 | Time: 341.90s
+2026-04-05 16:33:36,476 - [Rank 0] - INFO - Epoch [1/10] | Batch [450/1497] | Loss: 4.4208 | Time: 384.13s
+2026-04-05 16:34:18,461 - [Rank 0] - INFO - Epoch [1/10] | Batch [500/1497] | Loss: 4.3842 | Time: 426.11s
+2026-04-05 16:35:00,716 - [Rank 0] - INFO - Epoch [1/10] | Batch [550/1497] | Loss: 4.3500 | Time: 468.37s
+2026-04-05 16:35:44,379 - [Rank 0] - INFO - Epoch [1/10] | Batch [600/1497] | Loss: 4.3183 | Time: 512.03s
+2026-04-05 16:36:27,768 - [Rank 0] - INFO - Epoch [1/10] | Batch [650/1497] | Loss: 4.2897 | Time: 555.42s
+2026-04-05 16:37:11,629 - [Rank 0] - INFO - Epoch [1/10] | Batch [700/1497] | Loss: 4.2631 | Time: 599.28s
+2026-04-05 16:37:53,229 - [Rank 0] - INFO - Epoch [1/10] | Batch [750/1497] | Loss: 4.2386 | Time: 640.88s
+2026-04-05 16:38:35,426 - [Rank 0] - INFO - Epoch [1/10] | Batch [800/1497] | Loss: 4.2158 | Time: 683.08s
+2026-04-05 16:39:18,084 - [Rank 0] - INFO - Epoch [1/10] | Batch [850/1497] | Loss: 4.1945 | Time: 725.74s
+2026-04-05 16:40:00,651 - [Rank 0] - INFO - Epoch [1/10] | Batch [900/1497] | Loss: 4.1750 | Time: 768.30s
+2026-04-05 16:40:43,167 - [Rank 0] - INFO - Epoch [1/10] | Batch [950/1497] | Loss: 4.1566 | Time: 810.82s
+2026-04-05 16:41:25,996 - [Rank 0] - INFO - Epoch [1/10] | Batch [1000/1497] | Loss: 4.1396 | Time: 853.65s
+2026-04-05 16:42:08,922 - [Rank 0] - INFO - Epoch [1/10] | Batch [1050/1497] | Loss: 4.1235 | Time: 896.58s
+2026-04-05 16:42:50,738 - [Rank 0] - INFO - Epoch [1/10] | Batch [1100/1497] | Loss: 4.1088 | Time: 938.39s
+2026-04-05 16:43:31,850 - [Rank 0] - INFO - Epoch [1/10] | Batch [1150/1497] | Loss: 4.0949 | Time: 979.50s
+2026-04-05 16:44:14,558 - [Rank 0] - INFO - Epoch [1/10] | Batch [1200/1497] | Loss: 4.0814 | Time: 1022.21s
+2026-04-05 16:44:56,749 - [Rank 0] - INFO - Epoch [1/10] | Batch [1250/1497] | Loss: 4.0690 | Time: 1064.40s
+2026-04-05 16:45:38,337 - [Rank 0] - INFO - Epoch [1/10] | Batch [1300/1497] | Loss: 4.0575 | Time: 1105.99s
+2026-04-05 16:46:18,988 - [Rank 0] - INFO - Epoch [1/10] | Batch [1350/1497] | Loss: 4.0462 | Time: 1146.64s
+2026-04-05 16:47:00,832 - [Rank 0] - INFO - Epoch [1/10] | Batch [1400/1497] | Loss: 4.0352 | Time: 1188.49s
+2026-04-05 16:47:42,469 - [Rank 0] - INFO - Epoch [1/10] | Batch [1450/1497] | Loss: 4.0251 | Time: 1230.12s
+2026-04-05 16:48:22,310 - [Rank 0] - INFO - Train Loss: 4.0154 | Time: 1269.86s

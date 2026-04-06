@@ -1,0 +1,3 @@
+bash scripts/run_train_farslip_style.sh
+bash scripts/run_train_farslip_style_2.sh
+bash scripts/run_train_farslip_style_3.sh

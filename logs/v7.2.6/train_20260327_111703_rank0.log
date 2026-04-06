@@ -1,0 +1,310 @@
+2026-03-27 11:17:03,945 - [Rank 0] - INFO - ============================================================
+2026-03-27 11:17:03,945 - [Rank 0] - INFO - RS3 Grid Distillation Training
+2026-03-27 11:17:03,945 - [Rank 0] - INFO - ============================================================
+2026-03-27 11:17:03,945 - [Rank 0] - INFO - Configuration:
+2026-03-27 11:17:03,945 - [Rank 0] - INFO -   device: cuda
+2026-03-27 11:17:03,945 - [Rank 0] - INFO -   rs3_tar_dir: /root/data/rs3_filtered
+2026-03-27 11:17:03,945 - [Rank 0] - INFO -   rs3_val_dir: /root/data/rs3_filtered
+2026-03-27 11:17:03,945 - [Rank 0] - INFO -   batch_size: 24
+2026-03-27 11:17:03,945 - [Rank 0] - INFO -   num_workers: 8
+2026-03-27 11:17:03,945 - [Rank 0] - INFO -   model_name: ViT-B-32
+2026-03-27 11:17:03,945 - [Rank 0] - INFO -   pretrained_path: /root/checkpoint/RS5M_ViT-B-32.pt
+2026-03-27 11:17:03,945 - [Rank 0] - INFO -   precision: fp32
+2026-03-27 11:17:03,945 - [Rank 0] - INFO -   epochs: 6
+2026-03-27 11:17:03,945 - [Rank 0] - INFO -   lr: 1.84e-06
+2026-03-27 11:17:03,945 - [Rank 0] - INFO -   weight_decay: 0.1
+2026-03-27 11:17:03,945 - [Rank 0] - INFO -   warmup_epochs: 1
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   warmup_steps: 1500
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   scheduler_type: cosine
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   cooldown_steps: 0
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   grad_clip: 1.0
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   distill_align: roi_to_pooled
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   teacher_last_attn_type: qq+kk+vv
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   distill_loss_weight: 1.0
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   clip_loss_weight: 0.5
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   use_rafa: False
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   use_hycd: True
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   rafa_weight: 0.1
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   hycd_weight: 0.1
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   hycd_temperature: 1.0
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   hycd_alpha_blending: 0.5
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   rafa_prior_mu: 0.0
+2026-03-27 11:17:03,946 - [Rank 0] - INFO -   rafa_prior_sigma: 1.0
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   rafa_prior_stats_path: 
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   rafa_share_random_feat: True
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   optimizer_betas: (0.9, 0.98)
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   optimizer_eps: 1e-08
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   val_tar_count: 2
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   train_tar_count: 30
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   output_dir: ./checkpoints/v7.2.6
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   log_dir: ./logs/v7.2.6
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   tensorboard_dir: ./logs/v7.2.6/tensorboard
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   save_freq: 1
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   log_freq: 50
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   local_rank: -1
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   world_size: 1
+2026-03-27 11:17:03,947 - [Rank 0] - INFO -   use_amp: True
+2026-03-27 11:17:03,947 - [Rank 0] - INFO - 
+2026-03-27 11:17:03,949 - [Rank 0] - INFO - TensorBoard 已启用。查看: tensorboard --logdir ./logs/v7.2.6/tensorboard
+2026-03-27 11:17:03,949 - [Rank 0] - INFO - Building models...
+2026-03-27 11:17:03,949 - [Rank 0] - INFO - Loading models from /root/checkpoint/RS5M_ViT-B-32.pt...
+2026-03-27 11:17:03,949 - [Rank 0] - INFO - 
+=== Loading Teacher Model ===
+2026-03-27 11:17:03,949 - [Rank 0] - INFO - Parsing model identifier. Schema: None, Identifier: ViT-B-32
+2026-03-27 11:17:03,949 - [Rank 0] - INFO - Loaded built-in ViT-B-32 model config.
+2026-03-27 11:17:03,949 - [Rank 0] - INFO - `pretrained` specifies file path: /root/checkpoint/RS5M_ViT-B-32.pt
+2026-03-27 11:17:03,949 - [Rank 0] - INFO - Instantiating model architecture: CLIP
+2026-03-27 11:17:05,219 - [Rank 0] - INFO - Loading full pretrained weights from: /root/checkpoint/RS5M_ViT-B-32.pt
+2026-03-27 11:17:05,929 - [Rank 0] - INFO - Final image preprocessing configuration set: {'size': (224, 224), 'mode': 'RGB', 'mean': (0.48145466, 0.4578275, 0.40821073), 'std': (0.26862954, 0.26130258, 0.27577711), 'interpolation': 'bicubic', 'resize_mode': 'shortest', 'fill_color': 0}
+2026-03-27 11:17:05,929 - [Rank 0] - INFO - Model ViT-B-32 creation process complete.
+2026-03-27 11:17:05,931 - [Rank 0] - INFO - ✓ Teacher model loaded and frozen
+2026-03-27 11:17:05,931 - [Rank 0] - INFO -   - Model type: CLIP
+2026-03-27 11:17:05,932 - [Rank 0] - INFO -   - Parameters: 151,277,313
+2026-03-27 11:17:05,932 - [Rank 0] - INFO -   - Requires grad: 0 (frozen)
+2026-03-27 11:17:05,932 - [Rank 0] - INFO - 
+=== Loading Student Model ===
+2026-03-27 11:17:05,932 - [Rank 0] - INFO - Parsing model identifier. Schema: None, Identifier: ViT-B-32
+2026-03-27 11:17:05,933 - [Rank 0] - INFO - Loaded built-in ViT-B-32 model config.
+2026-03-27 11:17:05,933 - [Rank 0] - INFO - `pretrained` specifies file path: /root/checkpoint/RS5M_ViT-B-32.pt
+2026-03-27 11:17:05,933 - [Rank 0] - INFO - Instantiating model architecture: CLIP
+2026-03-27 11:17:07,121 - [Rank 0] - INFO - Loading full pretrained weights from: /root/checkpoint/RS5M_ViT-B-32.pt
+2026-03-27 11:17:07,520 - [Rank 0] - INFO - Final image preprocessing configuration set: {'size': (224, 224), 'mode': 'RGB', 'mean': (0.48145466, 0.4578275, 0.40821073), 'std': (0.26862954, 0.26130258, 0.27577711), 'interpolation': 'bicubic', 'resize_mode': 'shortest', 'fill_color': 0}
+2026-03-27 11:17:07,520 - [Rank 0] - INFO - Model ViT-B-32 creation process complete.
+2026-03-27 11:17:07,521 - [Rank 0] - INFO - ✓ Student model loaded with same initial weights
+2026-03-27 11:17:07,521 - [Rank 0] - INFO -   - Model type: CLIP
+2026-03-27 11:17:07,522 - [Rank 0] - INFO -   - Parameters: 151,277,313
+2026-03-27 11:17:07,522 - [Rank 0] - INFO -   - Requires grad: 302 (trainable)
+2026-03-27 11:17:07,942 - [Rank 0] - INFO - Models moved to device: cuda
+2026-03-27 11:17:07,942 - [Rank 0] - INFO - 
+Building dataloaders...
+2026-03-27 11:17:07,947 - [Rank 0] - WARNING - split=val: WebDataset 仅有 2 个 shard(.tar)，num_workers=8 会导致 6 个 worker 分不到数据、验证/训练提前结束。已将 num_workers 限制为 2。
+2026-03-27 11:17:07,947 - [Rank 0] - INFO - Train loader: 4250 batches
+2026-03-27 11:17:07,947 - [Rank 0] - INFO - Val loader: 284 batches
+2026-03-27 11:17:07,947 - [Rank 0] - INFO - 
+Building optimizer...
+2026-03-27 11:17:07,949 - [Rank 0] - INFO - Optimizer: AdamW (lr=1.84e-06, betas=(0.9, 0.98), eps=1e-08, weight_decay=0.1)
+2026-03-27 11:17:07,949 - [Rank 0] - INFO - Optimizing student model parameters only
+2026-03-27 11:17:07,949 - [Rank 0] - INFO - Scheduler: Cosine (warmup_steps=1500, total_steps=25500)
+2026-03-27 11:17:07,950 - [Rank 0] - INFO - Loss function: mse
+2026-03-27 11:17:07,950 - [Rank 0] - INFO - AMP enabled: True
+2026-03-27 11:17:07,950 - [Rank 0] - INFO - 
+============================================================
+2026-03-27 11:17:07,950 - [Rank 0] - INFO - Starting training...
+2026-03-27 11:17:07,950 - [Rank 0] - INFO - ============================================================
+2026-03-27 11:17:07,950 - [Rank 0] - INFO - 
+Epoch [1/6]
+2026-03-27 11:17:07,950 - [Rank 0] - INFO - ------------------------------------------------------------
+2026-03-27 11:17:42,225 - [Rank 0] - INFO - Epoch [1/6] | Batch [50/4250] | Loss: 1.8608 | Time: 34.27s
+2026-03-27 11:18:11,913 - [Rank 0] - INFO - Epoch [1/6] | Batch [100/4250] | Loss: 1.7863 | Time: 63.96s
+2026-03-27 11:18:41,585 - [Rank 0] - INFO - Epoch [1/6] | Batch [150/4250] | Loss: 1.7116 | Time: 93.63s
+2026-03-27 11:19:11,411 - [Rank 0] - INFO - Epoch [1/6] | Batch [200/4250] | Loss: 1.6513 | Time: 123.46s
+2026-03-27 11:19:41,480 - [Rank 0] - INFO - Epoch [1/6] | Batch [250/4250] | Loss: 1.6020 | Time: 153.53s
+2026-03-27 11:20:11,610 - [Rank 0] - INFO - Epoch [1/6] | Batch [300/4250] | Loss: 1.5613 | Time: 183.66s
+2026-03-27 11:20:41,937 - [Rank 0] - INFO - Epoch [1/6] | Batch [350/4250] | Loss: 1.5257 | Time: 213.99s
+2026-03-27 11:21:12,215 - [Rank 0] - INFO - Epoch [1/6] | Batch [400/4250] | Loss: 1.4937 | Time: 244.26s
+2026-03-27 11:21:42,615 - [Rank 0] - INFO - Epoch [1/6] | Batch [450/4250] | Loss: 1.4654 | Time: 274.66s
+2026-03-27 11:22:13,079 - [Rank 0] - INFO - Epoch [1/6] | Batch [500/4250] | Loss: 1.4402 | Time: 305.13s
+2026-03-27 11:22:43,420 - [Rank 0] - INFO - Epoch [1/6] | Batch [550/4250] | Loss: 1.4164 | Time: 335.47s
+2026-03-27 11:23:13,963 - [Rank 0] - INFO - Epoch [1/6] | Batch [600/4250] | Loss: 1.3953 | Time: 366.01s
+2026-03-27 11:23:44,459 - [Rank 0] - INFO - Epoch [1/6] | Batch [650/4250] | Loss: 1.3755 | Time: 396.51s
+2026-03-27 11:24:14,942 - [Rank 0] - INFO - Epoch [1/6] | Batch [700/4250] | Loss: 1.3573 | Time: 426.99s
+2026-03-27 11:24:45,274 - [Rank 0] - INFO - Epoch [1/6] | Batch [750/4250] | Loss: 1.3407 | Time: 457.32s
+2026-03-27 11:25:16,002 - [Rank 0] - INFO - Epoch [1/6] | Batch [800/4250] | Loss: 1.3255 | Time: 488.05s
+2026-03-27 11:25:46,501 - [Rank 0] - INFO - Epoch [1/6] | Batch [850/4250] | Loss: 1.3113 | Time: 518.55s
+2026-03-27 11:26:16,933 - [Rank 0] - INFO - Epoch [1/6] | Batch [900/4250] | Loss: 1.2982 | Time: 548.98s
+2026-03-27 11:26:47,322 - [Rank 0] - INFO - Epoch [1/6] | Batch [950/4250] | Loss: 1.2859 | Time: 579.37s
+2026-03-27 11:27:17,675 - [Rank 0] - INFO - Epoch [1/6] | Batch [1000/4250] | Loss: 1.2743 | Time: 609.72s
+2026-03-27 11:27:48,476 - [Rank 0] - INFO - Epoch [1/6] | Batch [1050/4250] | Loss: 1.2634 | Time: 640.52s
+2026-03-27 11:28:19,173 - [Rank 0] - INFO - Epoch [1/6] | Batch [1100/4250] | Loss: 1.2532 | Time: 671.22s
+2026-03-27 11:28:49,815 - [Rank 0] - INFO - Epoch [1/6] | Batch [1150/4250] | Loss: 1.2434 | Time: 701.86s
+2026-03-27 11:29:21,047 - [Rank 0] - INFO - Epoch [1/6] | Batch [1200/4250] | Loss: 1.2349 | Time: 733.10s
+2026-03-27 11:29:51,722 - [Rank 0] - INFO - Epoch [1/6] | Batch [1250/4250] | Loss: 1.2263 | Time: 763.77s
+2026-03-27 11:30:22,416 - [Rank 0] - INFO - Epoch [1/6] | Batch [1300/4250] | Loss: 1.2184 | Time: 794.46s
+2026-03-27 11:30:53,143 - [Rank 0] - INFO - Epoch [1/6] | Batch [1350/4250] | Loss: 1.2111 | Time: 825.19s
+2026-03-27 11:31:23,898 - [Rank 0] - INFO - Epoch [1/6] | Batch [1400/4250] | Loss: 1.2036 | Time: 855.95s
+2026-03-27 11:31:54,838 - [Rank 0] - INFO - Epoch [1/6] | Batch [1450/4250] | Loss: 1.1963 | Time: 886.89s
+2026-03-27 11:32:25,551 - [Rank 0] - INFO - Epoch [1/6] | Batch [1500/4250] | Loss: 1.1898 | Time: 917.60s
+2026-03-27 11:32:56,415 - [Rank 0] - INFO - Epoch [1/6] | Batch [1550/4250] | Loss: 1.1833 | Time: 948.46s
+2026-03-27 11:33:27,210 - [Rank 0] - INFO - Epoch [1/6] | Batch [1600/4250] | Loss: 1.1771 | Time: 979.26s
+2026-03-27 11:33:58,074 - [Rank 0] - INFO - Epoch [1/6] | Batch [1650/4250] | Loss: 1.1713 | Time: 1010.12s
+2026-03-27 11:34:28,613 - [Rank 0] - INFO - Epoch [1/6] | Batch [1700/4250] | Loss: 1.1656 | Time: 1040.66s
+2026-03-27 11:34:59,055 - [Rank 0] - INFO - Epoch [1/6] | Batch [1750/4250] | Loss: 1.1600 | Time: 1071.10s
+2026-03-27 11:35:29,677 - [Rank 0] - INFO - Epoch [1/6] | Batch [1800/4250] | Loss: 1.1546 | Time: 1101.73s
+2026-03-27 11:36:00,032 - [Rank 0] - INFO - Epoch [1/6] | Batch [1850/4250] | Loss: 1.1497 | Time: 1132.08s
+2026-03-27 11:36:30,609 - [Rank 0] - INFO - Epoch [1/6] | Batch [1900/4250] | Loss: 1.1449 | Time: 1162.66s
+2026-03-27 11:37:00,966 - [Rank 0] - INFO - Epoch [1/6] | Batch [1950/4250] | Loss: 1.1405 | Time: 1193.01s
+2026-03-27 11:37:31,213 - [Rank 0] - INFO - Epoch [1/6] | Batch [2000/4250] | Loss: 1.1361 | Time: 1223.26s
+2026-03-27 11:38:01,459 - [Rank 0] - INFO - Epoch [1/6] | Batch [2050/4250] | Loss: 1.1320 | Time: 1253.51s
+2026-03-27 11:38:31,846 - [Rank 0] - INFO - Epoch [1/6] | Batch [2100/4250] | Loss: 1.1280 | Time: 1283.89s
+2026-03-27 11:39:02,209 - [Rank 0] - INFO - Epoch [1/6] | Batch [2150/4250] | Loss: 1.1242 | Time: 1314.26s
+2026-03-27 11:39:32,650 - [Rank 0] - INFO - Epoch [1/6] | Batch [2200/4250] | Loss: 1.1204 | Time: 1344.70s
+2026-03-27 11:40:03,236 - [Rank 0] - INFO - Epoch [1/6] | Batch [2250/4250] | Loss: 1.1168 | Time: 1375.28s
+2026-03-27 11:40:33,859 - [Rank 0] - INFO - Epoch [1/6] | Batch [2300/4250] | Loss: 1.1133 | Time: 1405.91s
+2026-03-27 11:41:04,579 - [Rank 0] - INFO - Epoch [1/6] | Batch [2350/4250] | Loss: 1.1101 | Time: 1436.63s
+2026-03-27 11:41:34,891 - [Rank 0] - INFO - Epoch [1/6] | Batch [2400/4250] | Loss: 1.1067 | Time: 1466.94s
+2026-03-27 11:42:05,413 - [Rank 0] - INFO - Epoch [1/6] | Batch [2450/4250] | Loss: 1.1034 | Time: 1497.46s
+2026-03-27 11:42:35,925 - [Rank 0] - INFO - Epoch [1/6] | Batch [2500/4250] | Loss: 1.1002 | Time: 1527.97s
+2026-03-27 11:43:06,315 - [Rank 0] - INFO - Epoch [1/6] | Batch [2550/4250] | Loss: 1.0974 | Time: 1558.36s
+2026-03-27 11:43:37,024 - [Rank 0] - INFO - Epoch [1/6] | Batch [2600/4250] | Loss: 1.0947 | Time: 1589.07s
+2026-03-27 11:44:07,605 - [Rank 0] - INFO - Epoch [1/6] | Batch [2650/4250] | Loss: 1.0917 | Time: 1619.65s
+2026-03-27 11:44:38,347 - [Rank 0] - INFO - Epoch [1/6] | Batch [2700/4250] | Loss: 1.0889 | Time: 1650.40s
+2026-03-27 11:45:08,714 - [Rank 0] - INFO - Epoch [1/6] | Batch [2750/4250] | Loss: 1.0863 | Time: 1680.76s
+2026-03-27 11:45:39,385 - [Rank 0] - INFO - Epoch [1/6] | Batch [2800/4250] | Loss: 1.0837 | Time: 1711.43s
+2026-03-27 11:46:09,817 - [Rank 0] - INFO - Epoch [1/6] | Batch [2850/4250] | Loss: 1.0811 | Time: 1741.87s
+2026-03-27 11:46:40,539 - [Rank 0] - INFO - Epoch [1/6] | Batch [2900/4250] | Loss: 1.0788 | Time: 1772.59s
+2026-03-27 11:47:11,113 - [Rank 0] - INFO - Epoch [1/6] | Batch [2950/4250] | Loss: 1.0763 | Time: 1803.16s
+2026-03-27 11:47:41,690 - [Rank 0] - INFO - Epoch [1/6] | Batch [3000/4250] | Loss: 1.0738 | Time: 1833.74s
+2026-03-27 11:48:12,212 - [Rank 0] - INFO - Epoch [1/6] | Batch [3050/4250] | Loss: 1.0715 | Time: 1864.26s
+2026-03-27 11:48:42,949 - [Rank 0] - INFO - Epoch [1/6] | Batch [3100/4250] | Loss: 1.0694 | Time: 1895.00s
+2026-03-27 11:49:13,719 - [Rank 0] - INFO - Epoch [1/6] | Batch [3150/4250] | Loss: 1.0673 | Time: 1925.77s
+2026-03-27 11:49:44,516 - [Rank 0] - INFO - Epoch [1/6] | Batch [3200/4250] | Loss: 1.0651 | Time: 1956.56s
+2026-03-27 11:50:15,199 - [Rank 0] - INFO - Epoch [1/6] | Batch [3250/4250] | Loss: 1.0631 | Time: 1987.25s
+2026-03-27 11:50:45,674 - [Rank 0] - INFO - Epoch [1/6] | Batch [3300/4250] | Loss: 1.0612 | Time: 2017.72s
+2026-03-27 11:51:16,224 - [Rank 0] - INFO - Epoch [1/6] | Batch [3350/4250] | Loss: 1.0592 | Time: 2048.27s
+2026-03-27 11:51:46,809 - [Rank 0] - INFO - Epoch [1/6] | Batch [3400/4250] | Loss: 1.0573 | Time: 2078.86s
+2026-03-27 11:52:17,088 - [Rank 0] - INFO - Epoch [1/6] | Batch [3450/4250] | Loss: 1.0554 | Time: 2109.14s
+2026-03-27 11:52:47,587 - [Rank 0] - INFO - Epoch [1/6] | Batch [3500/4250] | Loss: 1.0535 | Time: 2139.64s
+2026-03-27 11:53:18,031 - [Rank 0] - INFO - Epoch [1/6] | Batch [3550/4250] | Loss: 1.0517 | Time: 2170.08s
+2026-03-27 11:53:48,514 - [Rank 0] - INFO - Epoch [1/6] | Batch [3600/4250] | Loss: 1.0500 | Time: 2200.56s
+2026-03-27 11:54:19,231 - [Rank 0] - INFO - Epoch [1/6] | Batch [3650/4250] | Loss: 1.0481 | Time: 2231.28s
+2026-03-27 11:54:49,570 - [Rank 0] - INFO - Epoch [1/6] | Batch [3700/4250] | Loss: 1.0464 | Time: 2261.62s
+2026-03-27 11:55:20,144 - [Rank 0] - INFO - Epoch [1/6] | Batch [3750/4250] | Loss: 1.0447 | Time: 2292.19s
+2026-03-27 11:55:50,601 - [Rank 0] - INFO - Epoch [1/6] | Batch [3800/4250] | Loss: 1.0431 | Time: 2322.65s
+2026-03-27 11:56:21,371 - [Rank 0] - INFO - Epoch [1/6] | Batch [3850/4250] | Loss: 1.0413 | Time: 2353.42s
+2026-03-27 11:56:52,030 - [Rank 0] - INFO - Epoch [1/6] | Batch [3900/4250] | Loss: 1.0397 | Time: 2384.08s
+2026-03-27 11:57:22,577 - [Rank 0] - INFO - Epoch [1/6] | Batch [3950/4250] | Loss: 1.0383 | Time: 2414.63s
+2026-03-27 11:57:53,029 - [Rank 0] - INFO - Epoch [1/6] | Batch [4000/4250] | Loss: 1.0369 | Time: 2445.08s
+2026-03-27 11:58:23,606 - [Rank 0] - INFO - Epoch [1/6] | Batch [4050/4250] | Loss: 1.0354 | Time: 2475.65s
+2026-03-27 11:58:54,004 - [Rank 0] - INFO - Epoch [1/6] | Batch [4100/4250] | Loss: 1.0339 | Time: 2506.05s
+2026-03-27 11:59:24,627 - [Rank 0] - INFO - Epoch [1/6] | Batch [4150/4250] | Loss: 1.0324 | Time: 2536.68s
+2026-03-27 11:59:55,291 - [Rank 0] - INFO - Epoch [1/6] | Batch [4200/4250] | Loss: 1.0309 | Time: 2567.34s
+2026-03-27 12:00:25,855 - [Rank 0] - INFO - Epoch [1/6] | Batch [4250/4250] | Loss: 1.0295 | Time: 2597.90s
+2026-03-27 12:00:25,960 - [Rank 0] - INFO - Train Loss: 1.0295 | Time: 2597.90s
+2026-03-27 12:07:15,203 - [Rank 0] - INFO - Validation | Epoch [1/6] | Val Loss: 0.9132 | Batches: 284 (len(dataloader)=284) | Time: 409.24s
+2026-03-27 12:07:17,552 - [Rank 0] - INFO - Checkpoint saved to ./checkpoints/v7.2.6/best_model.pth
+2026-03-27 12:07:17,553 - [Rank 0] - INFO - ✓ New best model saved! (val_loss: 0.9132)
+2026-03-27 12:07:19,960 - [Rank 0] - INFO - Checkpoint saved to ./checkpoints/v7.2.6/checkpoint_epoch_1.pth
+2026-03-27 12:07:19,961 - [Rank 0] - INFO - 
+Epoch [2/6]
+2026-03-27 12:07:19,961 - [Rank 0] - INFO - ------------------------------------------------------------
+2026-03-27 12:07:59,646 - [Rank 0] - INFO - Epoch [2/6] | Batch [50/4250] | Loss: 0.9109 | Time: 39.68s
+2026-03-27 12:08:30,135 - [Rank 0] - INFO - Epoch [2/6] | Batch [100/4250] | Loss: 0.9125 | Time: 70.17s
+2026-03-27 12:09:01,017 - [Rank 0] - INFO - Epoch [2/6] | Batch [150/4250] | Loss: 0.9114 | Time: 101.05s
+2026-03-27 12:09:31,829 - [Rank 0] - INFO - Epoch [2/6] | Batch [200/4250] | Loss: 0.9131 | Time: 131.87s
+2026-03-27 12:10:02,648 - [Rank 0] - INFO - Epoch [2/6] | Batch [250/4250] | Loss: 0.9131 | Time: 162.69s
+2026-03-27 12:10:33,601 - [Rank 0] - INFO - Epoch [2/6] | Batch [300/4250] | Loss: 0.9119 | Time: 193.64s
+2026-03-27 12:11:04,066 - [Rank 0] - INFO - Epoch [2/6] | Batch [350/4250] | Loss: 0.9123 | Time: 224.10s
+2026-03-27 12:11:34,561 - [Rank 0] - INFO - Epoch [2/6] | Batch [400/4250] | Loss: 0.9125 | Time: 254.60s
+2026-03-27 12:12:04,919 - [Rank 0] - INFO - Epoch [2/6] | Batch [450/4250] | Loss: 0.9126 | Time: 284.96s
+2026-03-27 12:12:35,784 - [Rank 0] - INFO - Epoch [2/6] | Batch [500/4250] | Loss: 0.9115 | Time: 315.82s
+2026-03-27 12:13:06,662 - [Rank 0] - INFO - Epoch [2/6] | Batch [550/4250] | Loss: 0.9108 | Time: 346.70s
+2026-03-27 12:13:37,468 - [Rank 0] - INFO - Epoch [2/6] | Batch [600/4250] | Loss: 0.9105 | Time: 377.51s
+2026-03-27 12:14:08,375 - [Rank 0] - INFO - Epoch [2/6] | Batch [650/4250] | Loss: 0.9100 | Time: 408.41s
+2026-03-27 12:14:38,983 - [Rank 0] - INFO - Epoch [2/6] | Batch [700/4250] | Loss: 0.9099 | Time: 439.02s
+2026-03-27 12:15:10,096 - [Rank 0] - INFO - Epoch [2/6] | Batch [750/4250] | Loss: 0.9095 | Time: 470.13s
+2026-03-27 12:15:40,669 - [Rank 0] - INFO - Epoch [2/6] | Batch [800/4250] | Loss: 0.9091 | Time: 500.71s
+2026-03-27 12:16:11,589 - [Rank 0] - INFO - Epoch [2/6] | Batch [850/4250] | Loss: 0.9087 | Time: 531.63s
+2026-03-27 12:16:43,046 - [Rank 0] - INFO - Epoch [2/6] | Batch [900/4250] | Loss: 0.9085 | Time: 563.08s
+2026-03-27 12:17:14,332 - [Rank 0] - INFO - Epoch [2/6] | Batch [950/4250] | Loss: 0.9076 | Time: 594.37s
+2026-03-27 12:17:45,338 - [Rank 0] - INFO - Epoch [2/6] | Batch [1000/4250] | Loss: 0.9072 | Time: 625.38s
+2026-03-27 12:18:16,292 - [Rank 0] - INFO - Epoch [2/6] | Batch [1050/4250] | Loss: 0.9064 | Time: 656.33s
+2026-03-27 12:18:47,144 - [Rank 0] - INFO - Epoch [2/6] | Batch [1100/4250] | Loss: 0.9056 | Time: 687.18s
+2026-03-27 12:19:17,811 - [Rank 0] - INFO - Epoch [2/6] | Batch [1150/4250] | Loss: 0.9055 | Time: 717.85s
+2026-03-27 12:19:48,101 - [Rank 0] - INFO - Epoch [2/6] | Batch [1200/4250] | Loss: 0.9055 | Time: 748.14s
+2026-03-27 12:20:18,568 - [Rank 0] - INFO - Epoch [2/6] | Batch [1250/4250] | Loss: 0.9053 | Time: 778.61s
+2026-03-27 12:20:49,215 - [Rank 0] - INFO - Epoch [2/6] | Batch [1300/4250] | Loss: 0.9048 | Time: 809.25s
+2026-03-27 12:21:19,878 - [Rank 0] - INFO - Epoch [2/6] | Batch [1350/4250] | Loss: 0.9043 | Time: 839.92s
+2026-03-27 12:21:50,338 - [Rank 0] - INFO - Epoch [2/6] | Batch [1400/4250] | Loss: 0.9040 | Time: 870.37s
+2026-03-27 12:22:21,022 - [Rank 0] - INFO - Epoch [2/6] | Batch [1450/4250] | Loss: 0.9035 | Time: 901.06s
+2026-03-27 12:22:51,407 - [Rank 0] - INFO - Epoch [2/6] | Batch [1500/4250] | Loss: 0.9032 | Time: 931.44s
+2026-03-27 12:23:21,997 - [Rank 0] - INFO - Epoch [2/6] | Batch [1550/4250] | Loss: 0.9029 | Time: 962.03s
+2026-03-27 12:23:52,593 - [Rank 0] - INFO - Epoch [2/6] | Batch [1600/4250] | Loss: 0.9032 | Time: 992.63s
+2026-03-27 12:24:23,021 - [Rank 0] - INFO - Epoch [2/6] | Batch [1650/4250] | Loss: 0.9030 | Time: 1023.06s
+2026-03-27 12:24:53,629 - [Rank 0] - INFO - Epoch [2/6] | Batch [1700/4250] | Loss: 0.9027 | Time: 1053.67s
+2026-03-27 12:25:24,043 - [Rank 0] - INFO - Epoch [2/6] | Batch [1750/4250] | Loss: 0.9025 | Time: 1084.08s
+2026-03-27 12:25:54,411 - [Rank 0] - INFO - Epoch [2/6] | Batch [1800/4250] | Loss: 0.9023 | Time: 1114.45s
+2026-03-27 12:26:24,944 - [Rank 0] - INFO - Epoch [2/6] | Batch [1850/4250] | Loss: 0.9019 | Time: 1144.98s
+2026-03-27 12:26:55,461 - [Rank 0] - INFO - Epoch [2/6] | Batch [1900/4250] | Loss: 0.9015 | Time: 1175.50s
+2026-03-27 12:27:26,061 - [Rank 0] - INFO - Epoch [2/6] | Batch [1950/4250] | Loss: 0.9012 | Time: 1206.10s
+2026-03-27 12:27:56,839 - [Rank 0] - INFO - Epoch [2/6] | Batch [2000/4250] | Loss: 0.9007 | Time: 1236.88s
+2026-03-27 12:28:27,615 - [Rank 0] - INFO - Epoch [2/6] | Batch [2050/4250] | Loss: 0.9001 | Time: 1267.65s
+2026-03-27 12:28:58,491 - [Rank 0] - INFO - Epoch [2/6] | Batch [2100/4250] | Loss: 0.9000 | Time: 1298.53s
+2026-03-27 12:29:29,011 - [Rank 0] - INFO - Epoch [2/6] | Batch [2150/4250] | Loss: 0.8996 | Time: 1329.05s
+2026-03-27 12:29:59,650 - [Rank 0] - INFO - Epoch [2/6] | Batch [2200/4250] | Loss: 0.8994 | Time: 1359.69s
+2026-03-27 12:30:30,023 - [Rank 0] - INFO - Epoch [2/6] | Batch [2250/4250] | Loss: 0.8990 | Time: 1390.06s
+2026-03-27 12:31:00,565 - [Rank 0] - INFO - Epoch [2/6] | Batch [2300/4250] | Loss: 0.8990 | Time: 1420.60s
+2026-03-27 12:31:30,762 - [Rank 0] - INFO - Epoch [2/6] | Batch [2350/4250] | Loss: 0.8987 | Time: 1450.80s
+2026-03-27 12:32:01,481 - [Rank 0] - INFO - Epoch [2/6] | Batch [2400/4250] | Loss: 0.8983 | Time: 1481.52s
+2026-03-27 12:32:32,111 - [Rank 0] - INFO - Epoch [2/6] | Batch [2450/4250] | Loss: 0.8983 | Time: 1512.15s
+2026-03-27 12:33:02,837 - [Rank 0] - INFO - Epoch [2/6] | Batch [2500/4250] | Loss: 0.8980 | Time: 1542.87s
+2026-03-27 12:33:33,384 - [Rank 0] - INFO - Epoch [2/6] | Batch [2550/4250] | Loss: 0.8978 | Time: 1573.42s
+2026-03-27 12:34:03,996 - [Rank 0] - INFO - Epoch [2/6] | Batch [2600/4250] | Loss: 0.8976 | Time: 1604.03s
+2026-03-27 12:34:34,231 - [Rank 0] - INFO - Epoch [2/6] | Batch [2650/4250] | Loss: 0.8975 | Time: 1634.27s
+2026-03-27 12:35:05,072 - [Rank 0] - INFO - Epoch [2/6] | Batch [2700/4250] | Loss: 0.8971 | Time: 1665.11s
+2026-03-27 12:35:35,738 - [Rank 0] - INFO - Epoch [2/6] | Batch [2750/4250] | Loss: 0.8968 | Time: 1695.78s
+2026-03-27 12:36:06,597 - [Rank 0] - INFO - Epoch [2/6] | Batch [2800/4250] | Loss: 0.8965 | Time: 1726.63s
+2026-03-27 12:36:37,211 - [Rank 0] - INFO - Epoch [2/6] | Batch [2850/4250] | Loss: 0.8963 | Time: 1757.25s
+2026-03-27 12:37:07,854 - [Rank 0] - INFO - Epoch [2/6] | Batch [2900/4250] | Loss: 0.8962 | Time: 1787.89s
+2026-03-27 12:37:38,453 - [Rank 0] - INFO - Epoch [2/6] | Batch [2950/4250] | Loss: 0.8959 | Time: 1818.49s
+2026-03-27 12:38:09,095 - [Rank 0] - INFO - Epoch [2/6] | Batch [3000/4250] | Loss: 0.8956 | Time: 1849.13s
+2026-03-27 12:38:39,782 - [Rank 0] - INFO - Epoch [2/6] | Batch [3050/4250] | Loss: 0.8953 | Time: 1879.82s
+2026-03-27 12:39:10,792 - [Rank 0] - INFO - Epoch [2/6] | Batch [3100/4250] | Loss: 0.8952 | Time: 1910.83s
+2026-03-27 12:39:41,487 - [Rank 0] - INFO - Epoch [2/6] | Batch [3150/4250] | Loss: 0.8950 | Time: 1941.52s
+2026-03-27 12:40:12,201 - [Rank 0] - INFO - Epoch [2/6] | Batch [3200/4250] | Loss: 0.8948 | Time: 1972.24s
+2026-03-27 12:40:43,030 - [Rank 0] - INFO - Epoch [2/6] | Batch [3250/4250] | Loss: 0.8946 | Time: 2003.07s
+2026-03-27 12:41:13,854 - [Rank 0] - INFO - Epoch [2/6] | Batch [3300/4250] | Loss: 0.8942 | Time: 2033.89s
+2026-03-27 12:41:44,500 - [Rank 0] - INFO - Epoch [2/6] | Batch [3350/4250] | Loss: 0.8940 | Time: 2064.54s
+2026-03-27 12:42:15,183 - [Rank 0] - INFO - Epoch [2/6] | Batch [3400/4250] | Loss: 0.8938 | Time: 2095.22s
+2026-03-27 12:42:46,649 - [Rank 0] - INFO - Epoch [2/6] | Batch [3450/4250] | Loss: 0.8935 | Time: 2126.69s
+2026-03-27 12:43:17,346 - [Rank 0] - INFO - Epoch [2/6] | Batch [3500/4250] | Loss: 0.8934 | Time: 2157.38s
+2026-03-27 12:43:48,194 - [Rank 0] - INFO - Epoch [2/6] | Batch [3550/4250] | Loss: 0.8932 | Time: 2188.23s
+2026-03-27 12:44:18,542 - [Rank 0] - INFO - Epoch [2/6] | Batch [3600/4250] | Loss: 0.8932 | Time: 2218.58s
+2026-03-27 12:44:49,189 - [Rank 0] - INFO - Epoch [2/6] | Batch [3650/4250] | Loss: 0.8929 | Time: 2249.23s
+2026-03-27 12:45:19,737 - [Rank 0] - INFO - Epoch [2/6] | Batch [3700/4250] | Loss: 0.8928 | Time: 2279.77s
+2026-03-27 12:45:50,279 - [Rank 0] - INFO - Epoch [2/6] | Batch [3750/4250] | Loss: 0.8925 | Time: 2310.32s
+2026-03-27 12:46:20,848 - [Rank 0] - INFO - Epoch [2/6] | Batch [3800/4250] | Loss: 0.8925 | Time: 2340.89s
+2026-03-27 12:46:51,515 - [Rank 0] - INFO - Epoch [2/6] | Batch [3850/4250] | Loss: 0.8923 | Time: 2371.55s
+2026-03-27 12:47:21,937 - [Rank 0] - INFO - Epoch [2/6] | Batch [3900/4250] | Loss: 0.8920 | Time: 2401.97s
+2026-03-27 12:47:52,480 - [Rank 0] - INFO - Epoch [2/6] | Batch [3950/4250] | Loss: 0.8920 | Time: 2432.52s
+2026-03-27 12:48:23,215 - [Rank 0] - INFO - Epoch [2/6] | Batch [4000/4250] | Loss: 0.8917 | Time: 2463.25s
+2026-03-27 12:48:54,048 - [Rank 0] - INFO - Epoch [2/6] | Batch [4050/4250] | Loss: 0.8915 | Time: 2494.09s
+2026-03-27 12:49:24,673 - [Rank 0] - INFO - Epoch [2/6] | Batch [4100/4250] | Loss: 0.8913 | Time: 2524.71s
+2026-03-27 12:49:55,447 - [Rank 0] - INFO - Epoch [2/6] | Batch [4150/4250] | Loss: 0.8910 | Time: 2555.48s
+2026-03-27 12:50:26,175 - [Rank 0] - INFO - Epoch [2/6] | Batch [4200/4250] | Loss: 0.8908 | Time: 2586.21s
+2026-03-27 12:50:56,738 - [Rank 0] - INFO - Epoch [2/6] | Batch [4250/4250] | Loss: 0.8906 | Time: 2616.78s
+2026-03-27 12:50:56,816 - [Rank 0] - INFO - Train Loss: 0.8906 | Time: 2616.78s
+2026-03-27 12:57:49,497 - [Rank 0] - INFO - Validation | Epoch [2/6] | Val Loss: 0.8789 | Batches: 284 (len(dataloader)=284) | Time: 412.68s
+2026-03-27 12:57:51,681 - [Rank 0] - INFO - Checkpoint saved to ./checkpoints/v7.2.6/best_model.pth
+2026-03-27 12:57:51,681 - [Rank 0] - INFO - ✓ New best model saved! (val_loss: 0.8789)
+2026-03-27 12:57:53,985 - [Rank 0] - INFO - Checkpoint saved to ./checkpoints/v7.2.6/checkpoint_epoch_2.pth
+2026-03-27 12:57:53,985 - [Rank 0] - INFO - 
+Epoch [3/6]
+2026-03-27 12:57:53,985 - [Rank 0] - INFO - ------------------------------------------------------------
+2026-03-27 12:58:28,575 - [Rank 0] - INFO - Epoch [3/6] | Batch [50/4250] | Loss: 0.8603 | Time: 34.59s
+2026-03-27 12:59:01,625 - [Rank 0] - INFO - Epoch [3/6] | Batch [100/4250] | Loss: 0.8702 | Time: 67.64s
+2026-03-27 12:59:32,581 - [Rank 0] - INFO - Epoch [3/6] | Batch [150/4250] | Loss: 0.8696 | Time: 98.59s
+2026-03-27 13:00:03,675 - [Rank 0] - INFO - Epoch [3/6] | Batch [200/4250] | Loss: 0.8677 | Time: 129.69s
+2026-03-27 13:00:34,640 - [Rank 0] - INFO - Epoch [3/6] | Batch [250/4250] | Loss: 0.8681 | Time: 160.65s
+2026-03-27 13:01:05,591 - [Rank 0] - INFO - Epoch [3/6] | Batch [300/4250] | Loss: 0.8684 | Time: 191.60s
+2026-03-27 13:01:36,783 - [Rank 0] - INFO - Epoch [3/6] | Batch [350/4250] | Loss: 0.8689 | Time: 222.80s
+2026-03-27 13:02:08,165 - [Rank 0] - INFO - Epoch [3/6] | Batch [400/4250] | Loss: 0.8699 | Time: 254.18s
+2026-03-27 13:02:39,530 - [Rank 0] - INFO - Epoch [3/6] | Batch [450/4250] | Loss: 0.8705 | Time: 285.54s
+2026-03-27 13:03:10,592 - [Rank 0] - INFO - Epoch [3/6] | Batch [500/4250] | Loss: 0.8710 | Time: 316.60s
+2026-03-27 13:03:41,668 - [Rank 0] - INFO - Epoch [3/6] | Batch [550/4250] | Loss: 0.8702 | Time: 347.68s
+2026-03-27 13:04:12,554 - [Rank 0] - INFO - Epoch [3/6] | Batch [600/4250] | Loss: 0.8704 | Time: 378.57s
+2026-03-27 13:04:43,401 - [Rank 0] - INFO - Epoch [3/6] | Batch [650/4250] | Loss: 0.8703 | Time: 409.41s
+2026-03-27 13:05:14,233 - [Rank 0] - INFO - Epoch [3/6] | Batch [700/4250] | Loss: 0.8709 | Time: 440.25s
+2026-03-27 13:05:45,348 - [Rank 0] - INFO - Epoch [3/6] | Batch [750/4250] | Loss: 0.8711 | Time: 471.36s
+2026-03-27 13:06:16,825 - [Rank 0] - INFO - Epoch [3/6] | Batch [800/4250] | Loss: 0.8709 | Time: 502.84s
+2026-03-27 13:06:48,276 - [Rank 0] - INFO - Epoch [3/6] | Batch [850/4250] | Loss: 0.8707 | Time: 534.29s
+2026-03-27 13:07:19,432 - [Rank 0] - INFO - Epoch [3/6] | Batch [900/4250] | Loss: 0.8703 | Time: 565.45s
+2026-03-27 13:07:50,002 - [Rank 0] - INFO - Epoch [3/6] | Batch [950/4250] | Loss: 0.8706 | Time: 596.01s
+2026-03-27 13:08:20,746 - [Rank 0] - INFO - Epoch [3/6] | Batch [1000/4250] | Loss: 0.8703 | Time: 626.76s
+2026-03-27 13:08:51,327 - [Rank 0] - INFO - Epoch [3/6] | Batch [1050/4250] | Loss: 0.8706 | Time: 657.34s
+2026-03-27 13:09:22,087 - [Rank 0] - INFO - Epoch [3/6] | Batch [1100/4250] | Loss: 0.8705 | Time: 688.10s
+2026-03-27 13:09:52,622 - [Rank 0] - INFO - Epoch [3/6] | Batch [1150/4250] | Loss: 0.8706 | Time: 718.63s
+2026-03-27 13:10:23,214 - [Rank 0] - INFO - Epoch [3/6] | Batch [1200/4250] | Loss: 0.8704 | Time: 749.23s
+2026-03-27 13:10:53,886 - [Rank 0] - INFO - Epoch [3/6] | Batch [1250/4250] | Loss: 0.8698 | Time: 779.90s
+2026-03-27 13:11:24,839 - [Rank 0] - INFO - Epoch [3/6] | Batch [1300/4250] | Loss: 0.8699 | Time: 810.85s
+2026-03-27 13:11:55,774 - [Rank 0] - INFO - Epoch [3/6] | Batch [1350/4250] | Loss: 0.8700 | Time: 841.79s
+2026-03-27 13:12:26,853 - [Rank 0] - INFO - Epoch [3/6] | Batch [1400/4250] | Loss: 0.8697 | Time: 872.87s

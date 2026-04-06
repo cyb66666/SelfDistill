@@ -1,11 +1,12 @@
 import os
 import io
+import json
 import glob
 import random
 import logging
 from PIL import Image
 import webdataset as wds
-from torch.utils.data import DataLoader, Dataset, DistributedSampler, DistributedSampler
+from torch.utils.data import DataLoader, Dataset, DistributedSampler
 from torchvision import transforms
 import torch
 from torch.nn.functional import pad
@@ -15,7 +16,75 @@ import matplotlib.pyplot as plt
 from torchvision import transforms as T
 Image.MAX_IMAGE_PIXELS = None  # 解决大图片加载限制
 
-class RS3GridDistillDataset(Dataset):
+
+class GridDistillImageMixin:
+    """RS3 / MGRS 共用的网格 crop、box 模板与 read_image 逻辑。"""
+
+    def _init_grid_common(self, transforms, max_split, crop_size, args):
+        self.transforms = transforms
+        self.args = args
+        self.max_anns = args.max_boxes
+        if not isinstance(crop_size, (tuple, list)):
+            crop_size = [crop_size, crop_size]
+        self.crop_size = crop_size
+        self._init_choices(max_split)
+        self._init_boxes()
+
+    def read_image(self, img_data):
+        if img_data is None:
+            return None
+        width, height = img_data.size
+        if width < 10 or height < 10:
+            logging.warning(f"Invalid image, size {img_data.size}")
+            return None
+        return img_data
+
+    def _init_choices(self, M=16):
+        choices = []
+        for m in range(1, M + 1):
+            for n in range((m + 1) // 2, min(m * 2 + 1, M + 1)):
+                choices.append((m, n))
+        self.choices = choices
+
+    def _init_boxes(self):
+        box_templates = {}
+        for choice in self.choices:
+            M, N = choice
+            grid_x, grid_y = torch.meshgrid(
+                torch.linspace(0, 1, N + 1),
+                torch.linspace(0, 1, M + 1),
+                indexing='xy'
+            )
+            x0y0s = torch.stack([grid_x[:M, :N], grid_y[:M, :N]], dim=-1)
+            x1y1s = torch.stack([grid_x[1:, 1:], grid_y[1:, 1:]], dim=-1)
+            pseudo_boxes = torch.cat([x0y0s, x1y1s], dim=-1).view(-1, 4)
+            assert pseudo_boxes.shape[0] == M * N
+            box_templates[choice] = pseudo_boxes
+        self.box_templates = box_templates
+
+    def _obtain_image_crops(self, image, choice):
+        image_crops = []
+        img_w, img_h = image.size
+        normed_boxes = self.box_templates[choice]
+        indices = list(range(len(normed_boxes)))
+        random.shuffle(indices)
+        indices = indices[:self.max_anns]
+        boxes = normed_boxes * torch.tensor([img_w, img_h, img_w, img_h])
+        for idx in indices:
+            box = boxes[idx]
+            x0, y0, x1, y1 = box.tolist()
+            if self.args.crop_scale > 1.0:
+                box_w, box_h = x1 - x0, y1 - y0
+                cx, cy = (x1 + x0) / 2, (y1 + y0) / 2
+                delta_factor = 0.5 * self.args.crop_scale
+                x0, y0, x1, y1 = max(cx - box_w * delta_factor, 0), max(cy - box_h * delta_factor, 0), \
+                    min(cx + box_w * delta_factor, img_w), min(cy + box_h * delta_factor, img_h)
+            crop_transform = self.transforms[1] if len(self.transforms) > 1 else self.transforms[0]
+            image_crops.append(crop_transform(image.crop((x0, y0, x1, y1))))
+        return torch.stack(image_crops), normed_boxes[indices]
+
+
+class RS3GridDistillDataset(Dataset, GridDistillImageMixin):
     """
     RS3 数据集的网格蒸馏数据加载器
     
@@ -33,7 +102,7 @@ class RS3GridDistillDataset(Dataset):
     def __init__(self,
                  rs3_tar_dir,              # RS3 tar 文件所在目录
                  transforms,                 # 图像变换列表
-                 max_split=16,               # 最大网格划分数量（16x16）
+                 max_split=4,               # 最大网格划分数量（16x16）
                  crop_size=224,              # 裁剪区域的尺寸
                  pre_transforms=False,       # 是否使用预变换（如数据增强）
                  args=None,                  # 其他配置参数
@@ -50,26 +119,19 @@ class RS3GridDistillDataset(Dataset):
             args: 包含 max_boxes, crop_scale 等参数的配置对象
         """
         self.rs3_tar_dir = rs3_tar_dir
-        self._init_choices(max_split)  # 初始化所有可能的网格划分选择
         logging.debug(f'Loading RS3 data from {rs3_tar_dir}.')
-        
-        self.transforms = transforms      # 保存图像变换
-        self.args = args                  # 保存配置参数
-        self.max_anns = args.max_boxes    # 最大保留的 box 数量（用于填充）
-        
-        # 处理 crop_size，支持整数或元组
-        if not isinstance(crop_size, (tuple, list)):
-            crop_size = [crop_size, crop_size]
-        self.crop_size = crop_size
-        
-        self._init_boxes()  # 初始化 box 模板
-        
+        self._init_grid_common(transforms, max_split, crop_size, args)
+
         # 设置 RS3 tar 文件路径模式
         if tar_pattern is None:
-            tar_pattern = glob.glob(os.path.join(rs3_tar_dir, "*.tar"))
+            tar_pattern = sorted(glob.glob(os.path.join(rs3_tar_dir, "*.tar")))
+        self.tar_files = tar_pattern
         
         # 构建 WebDataset 数据集（使用传入的 tar_pattern）
         # 注意：保持为迭代器形式，不要转为列表，避免内存溢出
+        # WebDataset 默认 workersplitter=split_by_worker：按 DataLoader worker id 对 shard 列表 stride 分配；
+        # 若 DataLoader num_workers > len(tar)，部分 worker 分不到 shard，会提前结束（验证常只跑极少 batch）。
+        # 请在 create_rs3_dataloader 里保证 num_workers <= len(tar_pattern)。
         self.dataset = (
             wds.WebDataset(tar_pattern, nodesplitter=None, empty_check=False)
             .decode(self.rs3_wds_decoder)  # 使用自定义解码器
@@ -115,49 +177,6 @@ class RS3GridDistillDataset(Dataset):
             return value.decode("utf-8")
         return value  # 其他字段直接返回
     
-    def read_image(self, img_data):
-        """
-        读取并验证图片
-        
-        Args:
-            img_data: PIL Image 对象
-        
-        Returns:
-            有效的图片对象，如果无效则返回 None
-        """
-        if img_data is None:
-            return None
-        
-        width, height = img_data.size
-        # 检查图片尺寸是否过小
-        if width < 10 or height < 10:
-            logging.warning(f"Invalid image, size {img_data.size}")
-            return None
-        
-        return img_data
-    
-    def _init_choices(self, M=16):
-        """
-        初始化所有可能的网格划分选择
-        
-        生成所有可能的 (m, n) 组合，用于后续生成不同密度的网格
-        
-        Args:
-            M: 最大划分数量
-        
-        示例：
-            M=16 时，会生成 (1,1), (1,2), (2,2), (2,3), (3,4) ... 等组合
-            每个组合 (m,n) 表示 m×n 的网格划分
-        """
-        choices = []
-        for m in range(1, M+1):
-            # n 的范围：[(m+1)//2, min(m*2+1, M+1)]
-            # 保证网格不会太细长
-            for n in range((m + 1)//2, min(m*2 + 1, M+1)):
-                choices.append((m, n))
-
-        self.choices = choices
-    
     def __len__(self):
         """
         返回数据集大小（预估值）
@@ -170,95 +189,8 @@ class RS3GridDistillDataset(Dataset):
         """
         # 估算数据量（WebDataset 无法精确获取长度）
         # 可以根据 tar 文件数量 * 每个 tar 的平均图片数估算
-        if "val" in self.rs3_tar_dir:
-            n = 1
-        else:
-            n = 31
-        return 3400*n  # 预估值
-    
-    def _init_boxes(self, ):
-        """
-        初始化边界框模板
-        
-        为每个网格划分选择 (m,n) 生成归一化的 box 模板
-        这些模板后续会被映射到实际图片尺寸
-        
-        生成的 box 格式：[x0, y0, x1, y1]（归一化坐标，范围 0-1）
-        """
-        box_templates = {}
-        for choice in self.choices:
-            M, N = choice
-            # 生成网格坐标
-            # grid_x, grid_y: (N+1, M+1) 的网格点
-            grid_x, grid_y = torch.meshgrid(
-                torch.linspace(0, 1, N + 1),  # N+1 个垂直线
-                torch.linspace(0, 1, M + 1),  # M+1 个水平线
-                indexing='xy'
-            )
-            
-            # 提取每个 grid 的左上角坐标 (x0, y0)
-            x0y0s = torch.stack([grid_x[:M, :N], grid_y[:M, :N]], dim=-1)
-            
-            # 提取每个 grid 的右下角坐标 (x1, y1)
-            x1y1s = torch.stack([grid_x[1:, 1:], grid_y[1:, 1:]], dim=-1)
-            
-            # 拼接成 box: [x0, y0, x1, y1]
-            pseudo_boxes = torch.cat([x0y0s, x1y1s], dim=-1).view(-1, 4)
-            
-            assert pseudo_boxes.shape[0] == M*N  # 验证 box 数量
-            box_templates[choice] = pseudo_boxes
-        
-        self.box_templates = box_templates  # 保存所有模板
-
-    def _obtain_image_crops(self, image, choice):
-        """
-        获取图像的裁剪区域
-        
-        根据选择的网格划分，将图像划分为多个区域，并应用 crop 变换
-        
-        Args:
-            image: PIL Image 对象
-            choice: 网格划分选择 (m, n)
-        
-        Returns:
-            image_crops: 裁剪后的图像张量 [num_crops, 3, crop_size, crop_size]
-            boxes: 对应的边界框（归一化比例）[num_crops, 4]
-        """
-        image_crops = []
-        img_w, img_h = image.size  # 原始图像尺寸
-        
-        # 获取归一化的 box 模板
-        normed_boxes = self.box_templates[choice]
-        
-        # 随机选择要保留的 box（不超过 max_anns 个）
-        indices = list(range(len(normed_boxes)))
-        random.shuffle(indices)
-        indices = indices[:self.max_anns]
-        
-        # 将归一化坐标转换为实际像素坐标
-        boxes = normed_boxes * torch.tensor([img_w, img_h, img_w, img_h])
-        
-        # 对每个 box 进行 crop
-        for idx in indices:
-            box = boxes[idx]
-            x0, y0, x1, y1 = box.tolist()
-            
-            # 如果 crop_scale > 1.0，扩展 crop 区域
-            if self.args.crop_scale > 1.0:
-                box_w, box_h = x1 - x0, y1 - y0
-                cx, cy = (x1 + x0)/2, (y1 + y0)/2
-                delta_factor = 0.5 * self.args.crop_scale
-                x0, y0, x1, y1 = max(cx - box_w * delta_factor, 0), max(cy - box_h * delta_factor, 0), \
-                    min(cx + box_w * delta_factor, img_w), min(cy + box_h * delta_factor, img_h)
-            
-            # 应用 crop 变换
-            # transforms[1]: crop 变换（如果有），否则使用 transforms[0]
-            crop_transform = self.transforms[1] if len(self.transforms) > 1 else self.transforms[0]
-            image_crops.append(crop_transform(image.crop((x0, y0, x1, y1))))
-        
-        # 返回 crops 和**归一化的 box 比例**（不是像素坐标）
-        # 这样后续 resize 不会影响 box 的相对位置
-        return torch.stack(image_crops), normed_boxes[indices]
+        n = max(len(getattr(self, "tar_files", [])), 1)
+        return 3400 * n  # 预估值
     
     def __getitem__(self, idx):
         """
@@ -362,6 +294,82 @@ class RS3GridDistillDataset(Dataset):
         return new_image, boxes_template, image_crops_template, mask_template, image_name, text_annotation
 
 
+class MGRSGridDistillDataset(Dataset, GridDistillImageMixin):
+    """
+    MGRS（text_info.json + global_imgs）网格蒸馏数据集。
+    全局文本仅使用 brief_caption，与 RS3GridDistillDataset 返回相同六元组。
+    """
+
+    def __init__(
+        self,
+        records,
+        image_root,
+        transforms,
+        max_split=4,
+        crop_size=224,
+        pre_transforms=False,
+        args=None,
+        max_skip_attempts: int = 256,
+    ):
+        self.records = records
+        self.image_root = image_root
+        self.max_skip_attempts = max(1, int(max_skip_attempts))
+        self._init_grid_common(transforms, max_split, crop_size, args)
+        if pre_transforms:
+            self.pre_transforms = T.Compose([T.RandomHorizontalFlip()])
+        else:
+            self.pre_transforms = None
+
+    def __len__(self):
+        return len(self.records)
+
+    def __getitem__(self, idx):
+        n = len(self.records)
+        max_tries = min(self.max_skip_attempts, n)
+        for attempt in range(max_tries):
+            i = (idx + attempt) % n
+            item = self.records[i]
+            rel = item.get("global_filepath")
+            if not rel:
+                continue
+            brief = item.get("brief_caption")
+            if brief is None:
+                continue
+            if isinstance(brief, bytes):
+                brief = brief.decode("utf-8", errors="replace")
+            text_annotation = str(brief).strip()
+            if not text_annotation:
+                continue
+            full_path = os.path.join(self.image_root, rel)
+            try:
+                old_image = Image.open(full_path).convert("RGB")
+            except Exception as e:
+                logging.debug("MGRS skip unreadable image %s: %s", full_path, e)
+                continue
+            old_image = self.read_image(old_image)
+            if old_image is None:
+                continue
+            if self.pre_transforms is not None:
+                old_image = self.pre_transforms(old_image)
+            new_image = self.transforms[0](old_image)
+            boxes_template = torch.zeros(self.max_anns, 4 + 1)
+            image_crops_template = torch.zeros(self.max_anns, 3, *self.crop_size)
+            mask_template = torch.zeros(self.max_anns, dtype=torch.bool)
+            image_crops, boxes = self._obtain_image_crops(old_image, random.choice(self.choices))
+            assert image_crops.shape[0] == boxes.shape[0]
+            num_valid_boxes = boxes.shape[0]
+            boxes_template[:num_valid_boxes, :4] = boxes
+            boxes_template[:num_valid_boxes, 4] = 1.0
+            image_crops_template[:num_valid_boxes] = image_crops
+            mask_template[:num_valid_boxes] = True
+            image_name = rel
+            return new_image, boxes_template, image_crops_template, mask_template, image_name, text_annotation
+        raise RuntimeError(
+            f"MGRSGridDistillDataset: 从索引 {idx} 起连续尝试 {max_tries} 条仍无有效样本（需磁盘上可读图像 + brief_caption）。"
+            f"请检查 mgrs_image_root={self.image_root!r} 是否已解压 global_imgs，并与 text_info.json 中 global_filepath 一致。"
+        )
+
+
 def get_scale(old_image, new_image):
     """计算图像缩放比例"""
     old_w, old_h = old_image.size
@@ -370,6 +378,221 @@ def get_scale(old_image, new_image):
     scale_x = old_w / new_w
     scale_y = old_h / new_h
     return torch.tensor([scale_x, scale_y, scale_x, scale_y])
+
+
+def verify_mgrs_image_root(mgrs_image_root: str, records: list, probe: int = 512) -> None:
+    """
+    主进程启动时校验：图像目录存在，且能在若干条记录内成功打开至少一张图。
+    避免 DataLoader worker 内对整表线性扫描。
+    """
+    root = os.path.abspath(mgrs_image_root)
+    if not os.path.exists(root):
+        hint = ""
+        parent = os.path.dirname(root)
+        if os.path.basename(root) == "global_imgs" and os.path.isdir(parent):
+            part_globs = sorted(glob.glob(os.path.join(parent, "global_imgs.tar.part-*")))
+            if part_globs:
+                hint = (
+                    f"\n在 {parent!r} 下检测到 global_imgs.tar.part-* 分卷但尚未解压出 global_imgs 目录，可执行：\n"
+                    f"  cd {parent!r} && cat global_imgs.tar.part-* > global_imgs.tar && tar -xf global_imgs.tar\n"
+                    f"然后将 --mgrs-image-root 指向解压得到的 global_imgs。"
+                )
+        raise FileNotFoundError(
+            f"MGRS 图像根目录不存在: {mgrs_image_root!r}（解析为 {root!r}）。"
+            f"请将其设为已解压的 global_imgs 文件夹。{hint}"
+        )
+    if not os.path.isdir(root):
+        raise NotADirectoryError(
+            f"MGRS mgrs_image_root 不是目录: {mgrs_image_root!r}"
+        )
+    parent = os.path.dirname(root)
+    if os.path.isdir(parent):
+        part_globs = sorted(glob.glob(os.path.join(parent, "global_imgs.tar.part-*")))
+        if part_globs and len(os.listdir(root)) == 0:
+            raise RuntimeError(
+                f"目录 {root!r} 存在但为空；同目录下存在分卷 {os.path.basename(part_globs[0])} 等。"
+                f"请先合并并解压，例如：\n"
+                f"  cd {parent!r} && cat global_imgs.tar.part-* > global_imgs.tar && tar -xf global_imgs.tar\n"
+                f"然后将 --mgrs-image-root 指向解压出的 global_imgs。"
+            )
+    n_probe = min(probe, len(records))
+    for k in range(n_probe):
+        item = records[k]
+        rel = item.get("global_filepath")
+        if not rel:
+            continue
+        brief = item.get("brief_caption")
+        if brief is None:
+            continue
+        if isinstance(brief, bytes):
+            brief = brief.decode("utf-8", errors="replace")
+        if not str(brief).strip():
+            continue
+        full_path = os.path.join(root, rel)
+        if not os.path.isfile(full_path):
+            continue
+        try:
+            with Image.open(full_path) as im:
+                im.convert("RGB")
+            logging.info(
+                "MGRS 图像校验通过：已打开 %s（探测第 %d/%d 条）",
+                full_path,
+                k + 1,
+                n_probe,
+            )
+            return
+        except Exception as e:
+            logging.debug("MGRS probe skip %s: %s", full_path, e)
+            continue
+    example_rel = next((r.get("global_filepath") for r in records[:20] if r.get("global_filepath")), "<unknown>")
+    example_path = os.path.join(root, example_rel) if example_rel != "<unknown>" else root
+    part_hint = ""
+    if os.path.isdir(parent):
+        part_globs = sorted(glob.glob(os.path.join(parent, "global_imgs.tar.part-*")))
+        if part_globs:
+            part_hint = (
+                f" 同目录下存在 global_imgs 分卷包，若尚未解压，请："
+                f"cd {parent!r} && cat global_imgs.tar.part-* > global_imgs.tar && tar -xf global_imgs.tar\n"
+            )
+    raise RuntimeError(
+        f"MGRS：在 mgrs_image_root={root!r} 下对前 {n_probe} 条记录探测后，仍无法打开任何有效图像（需同时有 brief_caption）。"
+        f"示例期望路径: {example_path!r}。\n{part_hint}"
+        f"请确认已解压 global_imgs、且 --mgrs-image-root 指向该目录（JSON 中 global_filepath 相对此目录）。"
+    )
+
+
+def split_mgrs_records(data_list, train_tar_count, val_tar_count):
+    """
+    将 MGRS JSON 列表按 global_filepath 排序后，均分为 S=train+val 个连续块；
+    训练集为前 train_tar_count 块拼接，验证集为剩余 val_tar_count 块拼接。
+    """
+    if train_tar_count < 0 or val_tar_count < 0:
+        raise ValueError("train_tar_count and val_tar_count must be non-negative")
+    S = train_tar_count + val_tar_count
+    if S <= 0:
+        raise ValueError("train_tar_count + val_tar_count must be positive")
+    sorted_list = sorted(data_list, key=lambda x: str(x.get("global_filepath", "")))
+    n = len(sorted_list)
+    boundaries = [(i * n) // S for i in range(S + 1)]
+    chunks = [sorted_list[boundaries[i]: boundaries[i + 1]] for i in range(S)]
+    train_records = []
+    for j in range(train_tar_count):
+        train_records.extend(chunks[j])
+    val_records = []
+    for j in range(train_tar_count, S):
+        val_records.extend(chunks[j])
+    return train_records, val_records
+
+
+def create_mgrs_dataloader(
+    mgrs_json_path="./data/mgrs/text_info.json",
+    mgrs_image_root="./data/mgrs/global_imgs",
+    batch_size=4,
+    num_workers=2,
+    whole_image_size=1024,
+    crop_size=224,
+    max_split=4,
+    max_boxes=16,
+    crop_scale=1.0,
+    shuffle=True,
+    drop_last=False,
+    distributed=False,
+    world_size=1,
+    rank=0,
+    split="train",
+    train_tar_count=9,
+    val_tar_count=1,
+):
+    """
+    从 MGRS text_info.json 创建 DataLoader（Map-style + 可选 DistributedSampler）。
+    """
+    class Args:
+        def __init__(self, max_boxes, crop_scale, train_ratio):
+            self.max_boxes = max_boxes
+            self.crop_scale = crop_scale
+            self.train_ratio = train_ratio
+
+    args = Args(
+        max_boxes=max_boxes,
+        crop_scale=crop_scale,
+        train_ratio=1.0,
+    )
+
+    whole_image_transform = T.Compose([
+        T.Resize((whole_image_size, whole_image_size)),
+        T.ToTensor(),
+        T.Normalize(
+            mean=[0.3759, 0.3912, 0.3618],
+            std=[0.2582, 0.2472, 0.2461],
+        ),
+    ])
+    crop_transform = T.Compose([
+        T.Resize((crop_size, crop_size)),
+        T.ToTensor(),
+        T.Normalize(
+            mean=[0.3759, 0.3912, 0.3618],
+            std=[0.2582, 0.2472, 0.2461],
+        ),
+    ])
+
+    if not os.path.isfile(mgrs_json_path):
+        raise FileNotFoundError(f"MGRS JSON not found: {mgrs_json_path}")
+    with open(mgrs_json_path, "r", encoding="utf-8") as f:
+        raw = json.load(f)
+    if not isinstance(raw, list):
+        raise ValueError(f"MGRS JSON root must be a list, got {type(raw)}")
+
+    train_records, val_records = split_mgrs_records(raw, train_tar_count, val_tar_count)
+    if split == "train":
+        records = train_records
+    elif split == "val":
+        records = val_records
+    else:
+        raise ValueError(f"Unknown split: {split}")
+
+    if len(records) == 0:
+        raise RuntimeError(
+            f"MGRS split={split} is empty (total={len(raw)}, "
+            f"train_tar_count={train_tar_count}, val_tar_count={val_tar_count})"
+        )
+
+    verify_mgrs_image_root(mgrs_image_root, records)
+
+    dataset = MGRSGridDistillDataset(
+        records=records,
+        image_root=mgrs_image_root,
+        transforms=[whole_image_transform, crop_transform],
+        max_split=max_split,
+        crop_size=crop_size,
+        pre_transforms=False,
+        args=args,
+    )
+
+    sampler = None
+    if distributed:
+        if world_size < 1:
+            logging.warning(f"Invalid world_size ({world_size}), disabling distributed sampling")
+            distributed = False
+        elif rank >= world_size:
+            logging.warning(f"Invalid rank ({rank}) for world_size ({world_size}), disabling distributed sampling")
+            distributed = False
+        else:
+            sampler = DistributedSampler(
+                dataset, num_replicas=world_size, rank=rank, shuffle=shuffle
+            )
+            shuffle = False
+            drop_last = True
+
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=shuffle,
+        drop_last=drop_last,
+        sampler=sampler,
+        persistent_workers=num_workers > 0,
+    )
+    return dataloader
 
 
 def create_rs3_dataloader(
@@ -386,7 +609,9 @@ def create_rs3_dataloader(
     distributed=False,          # 是否使用分布式训练
     world_size=1,               # 分布式训练的总进程数
     rank=0,                      # 当前进程的 rank
-    split='train'
+    split='train',
+    train_tar_count=30,
+    val_tar_count=2,
 ):
     """
     创建 RS3 数据集的 DataLoader
@@ -443,6 +668,23 @@ def create_rs3_dataloader(
         )
     ])
     
+    all_tar_files = sorted(glob.glob(os.path.join(rs3_tar_dir, "*.tar")))
+    if len(all_tar_files) == 0:
+        raise RuntimeError(f"No .tar files found under: {rs3_tar_dir}")
+
+    if split == "train":
+        tar_pattern = all_tar_files[:train_tar_count]
+    elif split == "val":
+        tar_pattern = all_tar_files[-val_tar_count:]
+    else:
+        raise ValueError(f"Unknown split: {split}")
+
+    if len(tar_pattern) == 0:
+        raise RuntimeError(
+            f"No tar files selected for split={split}. total={len(all_tar_files)}, "
+            f"train_tar_count={train_tar_count}, val_tar_count={val_tar_count}"
+        )
+
     # 创建数据集
     dataset = RS3GridDistillDataset(
         rs3_tar_dir=rs3_tar_dir,
@@ -451,32 +693,37 @@ def create_rs3_dataloader(
         crop_size=crop_size,
         pre_transforms=False,
         args=args,
-        tar_pattern=None
+        tar_pattern=tar_pattern
    )
    
    # 创建 DataLoader
    # 分布式训练时使用 DistributedSampler
     sampler= None
     
-    # 验证集限制 worker 数量，避免 WebDataset 因 shard 太少而报错
+    # WebDataset 默认按 worker 均分 shard（tar）：worker id 对 num_workers 取 stride，无 shard 的 worker 会空转失败，
+    # DataLoader 往往在跑过前几个 batch 后就停止（例如 val 只有 2 个 tar、num_workers=8 时约 2 个 batch 就停）。
+    n_shards = len(tar_pattern)
     actual_num_workers = num_workers
-    # if split == 'val':
-    #     # 验证集只使用 2 个 tar 文件，限制 worker 数量为 1
-    #     actual_num_workers = min(num_workers, 1)
-    #     logging.info(f'Val dataloader: reducing workers from {num_workers} to {actual_num_workers}')
+    if actual_num_workers > 0 and n_shards > 0 and actual_num_workers > n_shards:
+        logging.warning(
+            f"split={split}: WebDataset 仅有 {n_shards} 个 shard(.tar)，num_workers={num_workers} 会导致 "
+            f"{actual_num_workers - n_shards} 个 worker 分不到数据、验证/训练提前结束。"
+            f"已将 num_workers 限制为 {n_shards}。"
+        )
+        actual_num_workers = n_shards
     
     if distributed:
         # 验证 rank 和 world_size 是否有效
         if world_size < 1:
             logging.warning(f"Invalid world_size ({world_size}), disabling distributed sampling")
             distributed = False
-    elif rank >= world_size:
-        logging.warning(f"Invalid rank ({rank}) for world_size ({world_size}), disabling distributed sampling")
-        distributed = False
-    else:
-        sampler= DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=shuffle)
-        shuffle = False  # 使用 sampler 时不能设置 shuffle
-        drop_last = True  # 分布式训练时通常丢弃最后一个不完整的 batch
+        elif rank >= world_size:
+            logging.warning(f"Invalid rank ({rank}) for world_size ({world_size}), disabling distributed sampling")
+            distributed = False
+        else:
+            sampler= DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=shuffle)
+            shuffle = False  # 使用 sampler 时不能设置 shuffle
+            drop_last = True  # 分布式训练时通常丢弃最后一个不完整的 batch
    
     dataloader= DataLoader(
         dataset,

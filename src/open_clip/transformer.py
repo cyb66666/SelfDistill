@@ -627,11 +627,18 @@ class Transformer(nn.Module):
             x = x.transpose(0, 1)    # LND -> NLD
         return x
 
-    def extract_feature_map(self, x):
+    def extract_feature_map(self, x, last_attn_type: str = "qq+kk+vv"):
         for i in range(self.layers - 1):
             x = self.resblocks[i](x)
         x_forward = self.resblocks[-1](x)
-        x = self.resblocks[-1].qq_kk_vv_attn(x)
+        if last_attn_type == "qk":
+            x = x_forward
+        elif last_attn_type == "qq":
+            x = self.resblocks[-1].ss_attn(x, "qq")
+        elif last_attn_type == "qq+kk+vv":
+            x = self.resblocks[-1].qq_kk_vv_attn(x)
+        else:
+            raise ValueError(f"Unknown last_attn_type: {last_attn_type}")
         return x, x_forward
 
 
@@ -839,6 +846,37 @@ class VisionTransformer(nn.Module):
 
         return pooled, tokens
 
+    def _factor_patch_grid(self, n: int, gh: int, gw: int) -> Tuple[int, int]:
+        """Factor n = grid_h * grid_w; pick (h,w) closest to expected (gh, gw)."""
+        best: Optional[Tuple[int, int]] = None
+        best_score = float("inf")
+        r = int(math.sqrt(n)) + 1
+        for h in range(1, r + 1):
+            if n % h != 0:
+                continue
+            w = n // h
+            score = abs(h - gh) + abs(w - gw)
+            if score < best_score:
+                best_score = score
+                best = (h, w)
+        if best is None:
+            raise RuntimeError(f"Cannot factorize patch token count n={n} into a grid")
+        return best
+
+    def _patch_grid_hw(self, img: torch.Tensor, num_tokens: int) -> Tuple[int, int]:
+        """Spatial grid (grid_h, grid_w) from input image [B,3,H,W] and patch token count.
+
+        Non-square inputs (e.g. 224x256) yield non-square grids (e.g. 7x8). The old
+        ``h = w = int(sqrt(sq-1))`` only works for square grids and crashes otherwise.
+        """
+        _, _, H, W = img.shape
+        ph, pw = self.patch_size[0], self.patch_size[1]
+        gh = max(1, H // ph)
+        gw = max(1, W // pw)
+        if gh * gw == num_tokens:
+            return gh, gw
+        return self._factor_patch_grid(num_tokens, gh, gw)
+
     def _embeds(self, x:torch.Tensor) -> torch.Tensor:
         # 标准的patch嵌入生成+位置编码扩展
         x = self.conv1(x)  # shape = [*, dim, grid, grid]
@@ -985,7 +1023,12 @@ class VisionTransformer(nn.Module):
         
         return pooled, tokens
 
-    def teacher_roi_encode(self, x):
+    def teacher_roi_encode(
+        self,
+        x,
+        distill_align: str = "roi_to_cls",
+        last_attn_type: str = "qq+kk+vv",
+    ):
         """
         # x: 裁剪区域张量 [batch_size, max_boxes, 3, 224, 224]
         # masks: 有效区域掩码 [batch_size, max_boxes] (True 表示有效，False 表示填充)
@@ -995,20 +1038,28 @@ class VisionTransformer(nn.Module):
         # 融合维度：[batch_size, max_boxes, 3, 224, 224] -> [batch_size * max_boxes, 3, 224, 224]
         x_merged = x.view(batch_size * max_boxes, *x.shape[2:])
         
-        # forward 计算
-        cls_token, tokens = self.forward(x_merged)  # [batch_size * max_boxes, dim]
-        
-        pooled_tokens = tokens.mean(dim=1)
-        pooled_tokens = pooled_tokens @ self.proj
-        
-        return pooled_tokens
+        # 可配置教师最后一层注意力类型
+        x_merged = self._embeds(x_merged)
+        x_merged, _ = self.transformer.extract_feature_map(x_merged, last_attn_type=last_attn_type)
+        cls_token, tokens = self._pool(x_merged)
+        if self.proj is not None:
+            cls_token = cls_token @ self.proj
 
-    def _eval(self, x):
+        if distill_align == "roi_to_pooled":
+            pooled_tokens = tokens.mean(dim=1)
+            if self.proj is not None:
+                pooled_tokens = pooled_tokens @ self.proj
+            return pooled_tokens
+        if distill_align == "roi_to_cls":
+            return cls_token
+        raise ValueError(f"Unknown distill_align: {distill_align}")
+
+    def _eval(self, x): # x: tensor, shape: [batch_size, 3, H, W]
         with torch.no_grad():
+            img_in = x
             x = self._embeds(x)
             bs, sq, dim = x.shape
-            h = w = int((sq-1)**0.5)
-            x, x_forward = self.transformer.extract_feature_map(x)
+            x, x_forward = self.transformer.extract_feature_map(x, last_attn_type=last_attn_type)
 
             pooled, _ = self._pool(x_forward) # 原始全局语义(cls token, 传统注意力)
 
@@ -1016,26 +1067,35 @@ class VisionTransformer(nn.Module):
             tokens = x[:, 1:] # 特征tokens
             tokens = tokens @ self.proj
             pooled = pooled @ self.proj
-            
+
+            num_patch = tokens.shape[1]
+            h, w = self._patch_grid_hw(img_in, num_patch)
             # 重塑为特征图：[bs, dim, h, w]
             feature_map = tokens.view(bs, h, w, -1).permute(0, 3, 1, 2)
         return feature_map, pooled
 
-    def student_encode(self, x, normed_boxes):
+    def student_encode(
+        self,
+        x,
+        normed_boxes,
+        distill_align: str = "roi_to_cls",
+        teacher_cls_features: Optional[torch.Tensor] = None,
+    ):
         """
         学生模型编码：使用 RoIAlign + 注意力池化提取区域特征
         
         Args:
             x: 整图 [batch_size, 3, 1024, 1024]
             normed_boxes: 归一化 box [batch_size, max_boxes, 5] (xyxy + 有效标志)
-            teacher_cls_features: teacher 的 cls 特征 [batch_size * max_boxes, dim]
+            teacher_cls_features: teacher 的 cls 特征 [batch_size * max_boxes, dim]，
+                仅当 distill_align='roi_to_pooled_attn' 时需要，用于注意力池化的 query。
         
         Returns:
             pooled_features: 池化后的区域特征 [batch_size * max_boxes, dim]
         """
+        img_in = x
         x = self._embeds(x)
         bs, sq, dim = x.shape
-        h = w = int((sq-1)**0.5)
         x, x_forward = self.transformer.extract_feature_map(x)
 
         pooled, _ = self._pool(x_forward) # 原始全局语义(cls token, 传统注意力)
@@ -1044,7 +1104,9 @@ class VisionTransformer(nn.Module):
         tokens = x[:, 1:] # 特征tokens
         tokens = tokens @ self.proj
         pooled = pooled @ self.proj
-        
+
+        num_patch = tokens.shape[1]
+        h, w = self._patch_grid_hw(img_in, num_patch)
         # 重塑为特征图：[bs, dim, h, w]
         feature_map = tokens.view(bs, h, w, -1).permute(0, 3, 1, 2)
         
@@ -1053,17 +1115,45 @@ class VisionTransformer(nn.Module):
         boxes_xyxy = normed_boxes[:,:,:4]  # 取前 4 维坐标 [batch_size, max_boxes, 4]
         denormalized_boxes = self._denormalize_boxes(boxes_xyxy, feature_map)
         
-        # 对特征图进行 RoIAlign 操作
-        roi_feat = roi_align(
-            feature_map,      # [batch_size, dim, h, w]
-            denormalized_boxes,  # [batch_size, max_boxes, 4] 或 List[Tensor]
-            (1, 1),       # 固定输出尺寸 1x1
-            1.0, -1, True
-        )  # [batch_size*max_boxes, dim, 7, 7]
+        if distill_align == "roi_to_cls":
+            roi_feat = roi_align(
+                feature_map,      # [batch_size, dim, h, w]
+                denormalized_boxes,
+                (1, 1),
+                1.0, -1, True
+            )
+            roi_feat = roi_feat.squeeze(2).squeeze(2)
+            return roi_feat, pooled
 
-        # 安全 reshape: [N, dim, 1,1] -> [N, dim]
-        roi_feat = roi_feat.squeeze(2).squeeze(2) # 区域池化特征
-        return roi_feat, pooled
+        if distill_align == "roi_to_pooled":
+            # Follow FarSLIP roi-to-pooled: align pooled ROI patch features.
+            roi_feat = roi_align(
+                feature_map,      # [batch_size, dim, h, w]
+                denormalized_boxes,
+                (h, w),
+                1.0, -1, True
+            )
+            roi_feat = roi_feat.mean(dim=[2, 3])
+            return roi_feat, pooled
+        
+        if distill_align == "roi_to_pooled_attn":
+            if teacher_cls_features is None:
+                raise ValueError("roi_to_pooled_attn requires teacher_cls_features")
+            
+            # Attention pooling over ROI patch tokens, with teacher CLS as query.
+            roi_feat = roi_align(
+                feature_map,      # [batch_size, dim, h, w]
+                denormalized_boxes,
+                (h, w),
+                1.0, -1, True
+            )  # [N, dim, h, w]
+            
+            # [N, dim, h, w] -> [N, T, dim]
+            roi_tokens = roi_feat.flatten(2).transpose(1, 2)
+            roi_pooled = self._attn_pool(roi_tokens, teacher_cls_features)
+            return roi_pooled, pooled
+
+        raise ValueError(f"Unknown distill_align: {distill_align}")
 
     def _attn_pool(self, roi_feat, teacher_cls_features):
         """
